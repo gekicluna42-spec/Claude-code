@@ -7,3 +7,6 @@ preview-*.png
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+# Verification output
+site/.verify/

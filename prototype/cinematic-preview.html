@@ -1,0 +1,650 @@
+<title>Digital X — Cinematic Preview Lab</title>
+<style>
+:root{
+  --void:#05080c;      /* the site's own background */
+  --chrome:#0a0e14;    /* lab ground, one step off the void so devices read as objects */
+  --rail:#111823;
+  --line:rgba(95,201,255,.15);
+  --line-soft:rgba(95,201,255,.07);
+  --ice:#5fc9ff;
+  --ice-pale:#d9f2ff;
+  --dim:#7d90a4;       /* neutral biased toward the accent, not a pure grey */
+  --dimmer:#4a5a6b;
+  --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
+  --sans:ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--chrome);color:var(--ice-pale);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1400px;margin:0 auto;padding:28px 24px 64px}
+
+/* ---------- masthead ---------- */
+.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:16px 22px;
+  padding-bottom:18px;border-bottom:1px solid var(--line)}
+.head h1{font-family:var(--serif);font-weight:400;font-size:1.6rem;letter-spacing:.01em}
+.head h1 em{font-style:italic;color:var(--ice)}
+.head .tag{font-family:var(--mono);font-size:.68rem;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--dimmer);margin-left:auto}
+
+/* ---------- control rail ---------- */
+.rail{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px;
+  background:var(--rail);border:1px solid var(--line);border-radius:3px;
+  padding:14px 18px;margin:18px 0 22px}
+.rail button{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+  background:transparent;color:var(--ice);border:1px solid var(--line);border-radius:2px;
+  padding:8px 15px;cursor:pointer;transition:background .2s,border-color .2s}
+.rail button:hover{background:rgba(95,201,255,.09);border-color:var(--ice)}
+.rail button:focus-visible{outline:2px solid var(--ice);outline-offset:2px}
+.rail button[aria-pressed="true"]{background:var(--ice);color:#06121c;border-color:var(--ice)}
+.scrub{flex:1;min-width:220px;display:flex;align-items:center;gap:12px}
+.scrub label{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--dimmer);white-space:nowrap}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;background:transparent;height:20px;cursor:pointer}
+input[type=range]:focus-visible{outline:2px solid var(--ice);outline-offset:4px}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line);border-radius:2px}
+input[type=range]::-moz-range-track{height:2px;background:var(--line);border-radius:2px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--ice);margin-top:-5.5px;box-shadow:0 0 12px rgba(95,201,255,.6)}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;
+  background:var(--ice);box-shadow:0 0 12px rgba(95,201,255,.6)}
+.readout{font-family:var(--mono);font-size:.72rem;font-variant-numeric:tabular-nums;
+  color:var(--ice);letter-spacing:.06em;white-space:nowrap;min-width:172px}
+.readout span{color:var(--dimmer)}
+
+/* ---------- device bench ---------- */
+.bench{display:flex;gap:26px;align-items:flex-start;flex-wrap:wrap}
+.dev{display:flex;flex-direction:column;gap:9px}
+.dev--desk{flex:1;min-width:520px}
+.dev--phone{flex:0 0 auto}
+.devhead{display:flex;align-items:baseline;gap:10px;
+  font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.devhead b{color:var(--ice);font-weight:500}
+.devhead i{font-style:normal;color:var(--dimmer);margin-left:auto;font-variant-numeric:tabular-nums}
+.screen{position:relative;border:1px solid var(--line);border-radius:3px;overflow:hidden;
+  background:var(--void);box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.dev--phone .screen{border-radius:20px;border-width:6px;border-color:#161d27}
+.scroller{position:relative;overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.scroller::-webkit-scrollbar{display:none}
+.stage{position:sticky;top:0;z-index:0}
+.stage canvas{display:block;width:100%;height:100%}
+.flow{position:relative;z-index:1}
+
+/* ---------- prototype type (inside devices) ---------- */
+.act{position:relative}
+.pin{position:sticky;top:0;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:0 26px}
+.pinner{max-width:660px;opacity:0;transform:translateY(22px);
+  transition:opacity .7s ease,transform .7s ease}
+.pinner.on{opacity:1;transform:none}
+.whisper{font-family:var(--sans);font-size:.6rem;letter-spacing:.4em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:18px}
+.display{font-family:var(--serif);font-weight:400;line-height:1.06;color:var(--ice-pale);
+  text-shadow:0 2px 30px rgba(2,4,6,.96),0 0 70px rgba(2,4,6,.85);text-wrap:balance}
+.display i{font-style:italic;color:var(--ice)}
+.lead{color:var(--dim);margin:20px auto 0;max-width:400px;
+  text-shadow:0 2px 22px rgba(2,4,6,.95)}
+.hair{width:52px;height:1px;background:var(--ice);border:0;margin:22px auto}
+.cta{display:flex;gap:11px;justify-content:center;flex-wrap:wrap;margin-top:26px}
+.cta span{font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;padding:11px 22px;border-radius:2px}
+.cta .p{background:linear-gradient(100deg,#5fc9ff,#d9f2ff);color:#06121c}
+.cta .s{border:1px solid var(--line);color:var(--ice-pale)}
+.hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+  font-size:.55rem;letter-spacing:.34em;text-transform:uppercase;color:var(--dimmer)}
+.hint::after{content:"";display:block;width:1px;height:30px;margin:8px auto 0;
+  background:linear-gradient(var(--ice),transparent)}
+
+.pinner--wide{max-width:880px;width:100%}
+.pin::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(closest-side at 50% 50%,rgba(5,8,12,.86) 40%,rgba(5,8,12,.5) 72%,transparent 100%)}
+.pin>*{position:relative;z-index:1}
+.calls{display:grid;gap:14px;align-content:center}
+.calltop{grid-column:1/-1;text-align:center;margin-bottom:6px}
+.call{opacity:0;transform:translateY(22px);transition:opacity .6s ease,transform .6s ease;
+  text-align:left;border-top:1px solid var(--line);padding:13px 14px 15px;
+  background:rgba(5,8,12,.82);border-radius:0 0 2px 2px}
+.call.on{opacity:1;transform:none}
+.call .no{font-family:var(--serif);font-style:italic;color:var(--ice);font-size:.8rem;display:block;margin-bottom:5px}
+.call h3{font-family:var(--serif);font-weight:400;font-size:1.02rem;margin-bottom:5px;color:var(--ice-pale)}
+.call p{color:var(--dim);font-size:.74rem;line-height:1.45}
+
+.hand{display:grid;gap:12px;align-content:center}
+[data-m] .calls{gap:7px}
+[data-m] .call{padding:8px 11px 10px}
+[data-m] .call .no{font-size:.72rem;margin-bottom:3px}
+[data-m] .call h3{font-size:.92rem;margin-bottom:3px}
+[data-m] .call p{font-size:.68rem;line-height:1.35}
+[data-m] .calltop{margin-bottom:2px}
+.hcard{opacity:0;transform:translateY(16px) scale(.97);
+  transition:opacity .55s ease,transform .55s ease;
+  border:1px solid var(--line-soft);border-radius:2px;padding:12px;background:rgba(10,16,24,.86)}
+.hcard.on{opacity:1;transform:none}
+.hcard .sw{height:44px;border-radius:1px;margin-bottom:9px;
+  background:radial-gradient(120% 90% at 30% 10%,rgba(95,201,255,.34),rgba(5,8,12,.2) 70%)}
+.hcard h4{font-family:var(--serif);font-weight:400;font-size:.86rem;color:var(--ice-pale)}
+.hcard p{font-size:.66rem;color:var(--dimmer);margin-top:2px}
+
+/* Tier A (reduced motion / save-data) preview state */
+.tierA .stage canvas{filter:saturate(.55) brightness(.72)}
+.tierA .pinner,.tierA .call,.tierA .hcard{transition-duration:.001s}
+
+/* ---------- annotation ---------- */
+.note{margin-top:26px;border:1px solid var(--line);border-left:2px solid var(--ice);
+  border-radius:0 3px 3px 0;background:var(--rail);padding:18px 22px;
+  display:grid;grid-template-columns:auto 1fr;gap:6px 24px;align-items:baseline}
+.note .k{font-family:var(--mono);font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--ice)}
+.note .v{color:var(--dim);font-size:.88rem}
+.note .v b{color:var(--ice-pale);font-weight:500}
+
+/* ---------- spec table ---------- */
+.specs{margin-top:34px;border-top:1px solid var(--line);padding-top:22px}
+.specs h2{font-family:var(--serif);font-weight:400;font-size:1.18rem;margin-bottom:14px}
+.tbl{width:100%;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.82rem;min-width:560px}
+th,td{text-align:left;padding:9px 14px 9px 0;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-family:var(--mono);font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--dimmer);font-weight:400}
+td{color:var(--dim)}
+td:first-child{color:var(--ice-pale);white-space:nowrap}
+td b{color:var(--ice);font-weight:500;font-variant-numeric:tabular-nums}
+.foot{margin-top:26px;font-size:.76rem;color:var(--dimmer);line-height:1.65;max-width:66ch}
+.foot code{font-family:var(--mono);font-size:.9em;color:var(--dim)}
+
+@media (max-width:900px){
+  .dev--desk{min-width:100%}
+  .dev--phone{margin:0 auto}
+  .bench{gap:34px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pinner,.call,.hcard{transition-duration:.001s}
+}
+</style>
+
+<div class="wrap">
+
+  <div class="head">
+    <h1>Digital X — <em>Cinematic Preview</em></h1>
+    <span class="tag">Live WebGL prototype · desktop + mobile</span>
+  </div>
+
+  <div class="rail">
+    <button id="play" aria-pressed="false">Play</button>
+    <div class="scrub">
+      <label for="sc">Scrub</label>
+      <input type="range" id="sc" min="0" max="1000" value="0" aria-label="Scrub the cinematic">
+    </div>
+    <div class="readout" id="ro"><span>ACT</span> I · <span>PROG</span> 000.0%</div>
+    <button id="tier" aria-pressed="false">Tier A</button>
+  </div>
+
+  <div class="bench">
+    <div class="dev dev--desk">
+      <div class="devhead"><b>Desktop</b> 1280 × 620 <i id="i1">400% travel · 3-col explode</i></div>
+      <div class="screen"><div class="scroller" id="sD"></div></div>
+    </div>
+    <div class="dev dev--phone">
+      <div class="devhead"><b>Mobile</b> 390 × 760</div>
+      <div class="screen"><div class="scroller" id="sM"></div></div>
+      <div class="devhead"><i id="i2">260% travel · stacked reveal</i></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <div class="k">Act</div><div class="v" id="nTitle">—</div>
+    <div class="k">Camera</div><div class="v" id="nCam">—</div>
+    <div class="k">Divergence</div><div class="v" id="nDiv">—</div>
+  </div>
+
+  <div class="specs">
+    <h2>What this prototype demonstrates</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>From the plan</th><th>Shown here</th></tr></thead>
+        <tbody>
+          <tr><td>Tier B renderer</td><td>Real-time WebGL2, instanced glyph quads. <b>0 bytes</b> of media above the fold — the whole hero is math.</td></tr>
+          <tr><td>Scrub travel</td><td>Desktop <b>400%</b> of viewport height, mobile <b>260%</b> — the two devices are at the same scroll fraction but deliberately different distances.</td></tr>
+          <tr><td>Act II dolly-zoom</td><td>FOV widens <b>50°→75°</b> while the camera pushes in; glyphs velocity-stretch into trails, then a shockwave ripples out on deceleration.</td></tr>
+          <tr><td>Act III resolve</td><td>The cylinder separates into <b>six</b> constellations, one per discipline — a 3-column grid on desktop, a vertical stack on mobile.</td></tr>
+          <tr><td>Act IV handoff</td><td>The six constellations settle into the six service cards instead of hard-cutting to the next section.</td></tr>
+          <tr><td>Unit fix</td><td>Every height is resolved from the device box, not <code>vh</code> — the bug that makes the live site jump when the URL bar hides.</td></tr>
+          <tr><td>Tier A</td><td>Toggle it in the rail: animation stops, copy still reveals. What <code>prefers-reduced-motion</code> and Save-Data visitors get.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot">
+      Two independent WebGL contexts run side by side, driven by one scrub, so the desktop and mobile
+      choreography can be compared at identical scroll fractions — that divergence is the argument of
+      §5.3 of the plan, made visible. Copy is the live Bosnian copy from digital-x-marketing.com.
+      Display type stands in as Georgia: the Artifact CSP blocks font CDNs, so Cormorant Garamond is
+      not loaded here — on the real build it is self-hosted and preloaded.
+    </p>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================ prototype markup ============================ */
+function markup(mobile){
+  var call = function(n,t,d){return '<div class="call"><span class="no">'+n+'</span><h3>'+t+'</h3><p>'+d+'</p></div>';};
+  var hc = function(t,d){return '<div class="hcard"><div class="sw"></div><h4>'+t+'</h4><p>'+d+'</p></div>';};
+  return ''
+  + '<div class="stage"><canvas></canvas></div>'
+  + '<div class="flow">'
+    + '<section class="act" data-a="1"><div class="pin"><div class="pinner on">'
+      + '<p class="whisper">Digitalna agencija · MMXXVI</p>'
+      + '<h1 class="display" style="font-size:'+(mobile?'2.5rem':'4.1rem')+'">Prisustvo<br>koje se <i>pamti.</i></h1>'
+      + '<p class="lead">Web. Marketing. Inteligencija.</p>'
+      + '<div class="cta"><span class="p">Besplatne konzultacije</span><span class="s">Analiza sajta</span></div>'
+      + '</div><div class="hint">Skrolaj</div></div></section>'
+    + '<section class="act" data-a="2"><div class="pin"><div class="pinner">'
+      + '<h2 class="display" style="font-size:'+(mobile?'1.75rem':'2.9rem')+'">Ne pravimo web stranice.<br><i>Gradimo digitalna prisustva</i><br>koja prodaju.</h2>'
+      + '<hr class="hair">'
+      + '<p class="lead">Svaka linija koda ima jedan zadatak: vaš rast.</p>'
+      + '</div></div></section>'
+    + '<section class="act" data-a="3"><div class="pin"><div class="pinner pinner--wide calls" style="grid-template-columns:repeat('+(mobile?1:3)+',1fr)">'
+      + '<div class="calltop"><p class="whisper">Anatomija rasta</p>'
+      + '<h2 class="display" style="font-size:'+(mobile?'1.5rem':'2.2rem')+'">Šest disciplina. <i>Jedan tim.</i></h2></div>'
+      + call('I.','Web &amp; E-commerce','Stranice i trgovine koje se učitavaju ispod dvije sekunde — i prodaju.')
+      + call('II.','Aplikacije','Rješenja po mjeri vaših procesa. iOS, Android, web.')
+      + call('III.','SEO / GEO / AEO','Google. Mape. AI pretraživači. Prva AEO agencija u BiH.')
+      + call('IV.','Oglašavanje','Meta i Google kampanje mjerene jednim brojem: povratom.')
+      + call('V.','Sadržaj &amp; Produkcija','Copy, mreže, foto i video koji zaustavljaju palac.')
+      + call('VI.','AI Automatizacija','Chatbot, podsjetnici, recenzije. Radnik koji ne spava.')
+      + '</div></div></section>'
+    + '<section class="act" data-a="4"><div class="pin"><div class="pinner pinner--wide hand" style="grid-template-columns:repeat('+(mobile?2:3)+',1fr)">'
+      + '<div class="calltop"><p class="whisper">Vizualni pregled</p></div>'
+      + hc('Web &amp; E-commerce','Jasan put do upita.')
+      + hc('Aplikacije po mjeri','Portali, booking, alati.')
+      + hc('SEO · GEO · AEO','Google, mape, AI odgovori.')
+      + hc('Oglašavanje &amp; rast','Kampanje uz landing.')
+      + hc('Sadržaj &amp; Produkcija','Foto, video, copy.')
+      + hc('AI Automatizacija','Radnik koji ne spava.')
+      + '</div></div></section>'
+  + '</div>';
+}
+
+/* ============================ glyph atlas ============================ */
+var atlas = document.createElement('canvas');
+atlas.width = 256; atlas.height = 128;
+(function(){
+  var a = atlas.getContext('2d');
+  a.clearRect(0,0,256,128);
+  a.textAlign='center'; a.textBaseline='middle';
+  a.font = '600 92px ' + 'ui-monospace,Menlo,Consolas,monospace';
+  a.fillStyle='#fff';
+  a.fillText('0',64,66);
+  a.fillText('1',192,66);
+})();
+
+/* ============================ shaders ============================ */
+var VS = '#version 300 es\n\
+precision highp float;\n\
+in vec2 aCorner; in vec3 aPos; in float aBit; in float aLayer; in float aPhase; in float aGroup;\n\
+uniform mat3 uRot; uniform vec3 uCam; uniform vec2 uRes; uniform vec2 uSpread;\n\
+uniform float uFocal,uExplode,uStretch,uSize,uTime,uShock,uShockR,uRad;\n\
+out vec2 vUV; out float vB; out float vBit;\n\
+void main(){\n\
+  vec3 p = aPos;\n\
+  p.xz *= uRad;\n\
+  p.y = mod(p.y + uTime*22.0, 405.0) - 202.5;\n\
+  float ex = 1.0 + uExplode*aLayer*0.55;\n\
+  p.xz *= ex * mix(1.0, 0.52, uExplode);\n\
+  float ga = (aGroup/6.0)*6.2831853 + 0.52;\n\
+  p += vec3(cos(ga)*uSpread.x, sin(ga)*uSpread.y, 0.0) * uExplode;\n\
+  vec3 v = uRot * (p - uCam);\n\
+  if(v.z < 34.0){ gl_Position = vec4(0.0,0.0,2.0,1.0); vUV=vec2(0.0); vB=0.0; vBit=0.0; return; }\n\
+  float s = uFocal / v.z;\n\
+  vec2 c = v.xy * s;\n\
+  vec2 q = aCorner * uSize * s * vec2(1.0, uStretch);\n\
+  gl_Position = vec4((c+q)/(uRes*0.5), 0.0, 1.0);\n\
+  vUV = aCorner + 0.5;\n\
+  float depth = clamp(1.0 - (v.z-34.0)/1000.0, 0.0, 1.0);\n\
+  float pulse = pow(fract(aPhase - uTime*0.13), 9.0);\n\
+  float ring = exp(-pow((length(v)-uShockR)/80.0,2.0)) * uShock;\n\
+  vB = depth*(0.34 + 0.80*pulse) + ring*depth;\n\
+  vBit = aBit;\n\
+}';
+
+var FS = '#version 300 es\n\
+precision highp float;\n\
+in vec2 vUV; in float vB; in float vBit;\n\
+uniform sampler2D uTex;\n\
+out vec4 o;\n\
+void main(){\n\
+  if(vB <= 0.005) discard;\n\
+  float a = texture(uTex, vec2((vUV.x + vBit)*0.5, vUV.y)).a;\n\
+  if(a < 0.02) discard;\n\
+  vec3 cool = vec3(0.376,0.788,1.0);\n\
+  vec3 hot  = vec3(0.851,0.949,1.0);\n\
+  vec3 col = mix(cool, hot, clamp((vB-0.50)*1.8, 0.0, 1.0));\n\
+  o = vec4(col*vB*a, a*vB*0.9);\n\
+}';
+
+function compile(gl,type,src){
+  var s = gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function ease(t){ return t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2; }
+function clamp01(v){ return v<0?0:v>1?1:v; }
+
+/* ============================ device instance ============================ */
+function Cine(host, opts){
+  var self = this;
+  this.mobile = opts.mobile;
+  this.W = opts.w; this.H = opts.h;
+  this.mult = opts.mobile ? [1.7,1.7,2.2,1.5] : [2.1,2.1,2.8,1.6];
+  this.spread = opts.mobile ? [128,300] : [430,232];
+
+  host.style.height = this.H + 'px';
+  host.style.width  = this.W + 'px';
+  if(this.mobile) host.setAttribute('data-m','1');
+  host.innerHTML = markup(this.mobile);
+  this.el = host;
+
+  var stage = host.querySelector('.stage');
+  stage.style.height = this.H + 'px';
+  host.querySelector('.flow').style.marginTop = (-this.H) + 'px';
+
+  this.secs = [].slice.call(host.querySelectorAll('.act'));
+  this.secs.forEach(function(s,i){
+    s.style.height = Math.round(self.mult[i]*self.H) + 'px';
+    s.querySelector('.pin').style.height = self.H + 'px';
+  });
+  this.pinners = [].slice.call(host.querySelectorAll('.pinner'));
+  this.calls   = [].slice.call(host.querySelectorAll('.call'));
+  this.hcards  = [].slice.call(host.querySelectorAll('.hcard'));
+  this.pState  = this.pinners.map(function(){return null;});
+  this.cState  = this.calls.map(function(){return null;});
+  this.hState  = this.hcards.map(function(){return null;});
+
+  /* ---- gl ---- */
+  var cv = host.querySelector('canvas');
+  this.cv = cv;
+  var dpr = Math.min(window.devicePixelRatio||1, this.mobile?1:1.5);
+  cv.width  = Math.round(this.W*dpr);
+  cv.height = Math.round(this.H*dpr);
+  var gl = cv.getContext('webgl2', {alpha:false, antialias:true, powerPreference:'high-performance'});
+  this.gl = gl;
+  if(!gl){ this.dead = true; return; }
+
+  var prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl,gl.VERTEX_SHADER,VS));
+  gl.attachShader(prog, compile(gl,gl.FRAGMENT_SHADER,FS));
+  gl.linkProgram(prog);
+  if(!gl.getProgramParameter(prog,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  this.prog = prog;
+
+  this.u = {};
+  ['uRot','uCam','uRes','uSpread','uFocal','uExplode','uStretch','uSize','uTime','uShock','uShockR','uRad','uTex']
+    .forEach(function(n){ self.u[n] = gl.getUniformLocation(prog,n); });
+
+  /* geometry: instanced quads on a cylinder */
+  var COLS = this.mobile ? 46 : 82, ROWS = 15, STEP = 27, N = COLS*ROWS;
+  this.N = N;
+  var pos = new Float32Array(N*3), bit = new Float32Array(N),
+      lay = new Float32Array(N), pha = new Float32Array(N), grp = new Float32Array(N);
+  var k = 0;
+  for(var i=0;i<COLS;i++){
+    var ang = (i/COLS)*Math.PI*2 + ((i*37)%10)*0.02;
+    var rad = 300 + ((i*53)%7)*26;
+    var y0  = ((i*29)%5)*40;
+    for(var j=0;j<ROWS;j++){
+      pos[k*3]   = Math.cos(ang)*rad;
+      pos[k*3+1] = (y0 + j*STEP) % 405;
+      pos[k*3+2] = Math.sin(ang)*rad;
+      bit[k] = (i*31 + j*17) % 2;
+      lay[k] = i % 3;
+      pha[k] = ((i*97 + j*53) % 100)/100;
+      grp[k] = i % 6;
+      k++;
+    }
+  }
+  var quad = new Float32Array([-0.5,-0.5, 0.5,-0.5, -0.5,0.5, 0.5,0.5]);
+
+  function attr(name, data, size, divisor){
+    var loc = gl.getAttribLocation(prog,name);
+    var b = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,b);
+    gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0);
+    gl.vertexAttribDivisor(loc,divisor);
+  }
+  var vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  attr('aCorner',quad,2,0);
+  attr('aPos',pos,3,1);
+  attr('aBit',bit,1,1);
+  attr('aLayer',lay,1,1);
+  attr('aPhase',pha,1,1);
+  attr('aGroup',grp,1,1);
+  this.vao = vao;
+
+  var tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,tex);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL,false);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,atlas);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.uniform1i(this.u.uTex,0);
+
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.disable(gl.DEPTH_TEST);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+  gl.clearColor(0.0196,0.0313,0.047,1.0);
+  gl.uniform2f(this.u.uRes, this.W, this.H);
+  gl.uniform2f(this.u.uSpread, this.spread[0], this.spread[1]);
+  gl.uniform1f(this.u.uSize, this.mobile?26:23);
+  gl.uniform1f(this.u.uRad, this.mobile?0.46:1.0);
+
+  this.travel = 0;
+  this.secs.forEach(function(s,i){ if(i<3) self.travel += (self.mult[i]-1)*self.H; });
+}
+
+Cine.prototype.progress = function(){
+  var st = this.el.scrollTop, out = [];
+  for(var i=0;i<this.secs.length;i++){
+    var s = this.secs[i];
+    var span = s.offsetHeight - this.H;
+    out.push(span>0 ? clamp01((st - s.offsetTop)/span) : 0);
+  }
+  return out;
+};
+
+Cine.prototype.reveal = function(p){
+  var self = this;
+  this.pinners.forEach(function(el,i){
+    var last = self.pinners.length - 1;
+    var on = i===0    ? p[0] < 0.94
+           : i===last ? p[i] > 0.05          /* the closing act has to hold */
+           : (p[i] > 0.05 && p[i] < 0.95);
+    if(self.pState[i]!==on){ el.classList.toggle('on',on); self.pState[i]=on; }
+  });
+  this.calls.forEach(function(el,i){
+    var step = self.mobile ? 0.10 : 0.11;
+    var on = p[2] > 0.12 + i*step;
+    if(self.cState[i]!==on){ el.classList.toggle('on',on); self.cState[i]=on; }
+  });
+  this.hcards.forEach(function(el,i){
+    var on = p[3] > 0.05 + i*0.045;
+    if(self.hState[i]!==on){ el.classList.toggle('on',on); self.hState[i]=on; }
+  });
+};
+
+Cine.prototype.draw = function(t){
+  if(this.dead) return;
+  var p = this.progress();
+  this.reveal(p);
+
+  var a=p[0], b=p[1], c=p[2], d=p[3];
+  var eb = ease(b), ec = ease(c);
+
+  var yaw   = 0.90*a + 0.70*b + 0.50*c;
+  var cz    = 430 - 40*a - 250*eb + 190*ec;
+  var cx    = Math.sin(b*Math.PI)*130*(1-c);
+  var cy    = Math.sin(a*Math.PI)*26 - 70*b + 110*c;
+  var roll  = Math.sin(b*Math.PI)*0.07*(1-c);
+  var str   = 1 + Math.sin(b*Math.PI)*(this.mobile?7:13)*(1-c);
+  var fov   = 50 + 25*Math.sin(b*Math.PI);
+  var expl  = ec;
+
+  /* shockwave on Act II deceleration */
+  var shock = Math.exp(-Math.pow((b-0.80)/0.075,2))*1.9*(1-c);
+  var shockR = 70 + Math.max(0,b-0.78)*2100;
+
+  var cr = Math.cos(roll), sr = Math.sin(roll);
+  var cyw = Math.cos(yaw), syw = Math.sin(yaw);
+  var M = new Float32Array([
+    cr*cyw,  sr*cyw,  -syw,
+    -sr,     cr,      0,
+    cr*syw,  sr*syw,  cyw
+  ]);
+
+  var gl = this.gl;
+  gl.useProgram(this.prog);
+  gl.bindVertexArray(this.vao);
+  gl.uniformMatrix3fv(this.u.uRot,false,M);
+  gl.uniform3f(this.u.uCam, cx, cy, -cz);
+  gl.uniform1f(this.u.uFocal, (Math.min(this.W,this.H)*0.5)/Math.tan(fov*0.5*Math.PI/180));
+  gl.uniform1f(this.u.uExplode, expl);
+  gl.uniform1f(this.u.uStretch, str);
+  gl.uniform1f(this.u.uTime, t);
+  gl.uniform1f(this.u.uShock, shock);
+  gl.uniform1f(this.u.uShockR, shockR);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,this.N);
+
+  this.cv.style.opacity = (1 - clamp01(d*1.5)*0.78).toFixed(3);
+  this.p = p;
+};
+
+/* ============================ boot ============================ */
+var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var D = new Cine(document.getElementById('sD'), {mobile:false, w:1280, h:620});
+var M = new Cine(document.getElementById('sM'), {mobile:true,  w:390,  h:760});
+
+/* the desktop screen is wider than most benches — scale it to fit its column */
+(function fitDesktop(){
+  var screen = document.querySelector('.dev--desk .screen');
+  function fit(){
+    var avail = screen.parentElement.clientWidth;
+    var s = Math.min(1, avail/1280);
+    D.el.style.transformOrigin='top left';
+    D.el.style.transform = 'scale('+s+')';
+    screen.style.height = Math.round(620*s)+'px';
+    screen.style.width  = Math.round(1280*s)+'px';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+})();
+
+var ACTS = [
+  {n:'I — Prisustvo koje se pamti',
+   cam:'Slow turntable orbit, 0.9 rad, with a 40-unit dolly-in. FOV holds at 50°.',
+   div:'Identical on both devices — nothing has happened yet, and that restraint is the point.'},
+  {n:'II — Ne pravimo web stranice',
+   cam:'Camera accelerates through the glyph wall. FOV widens 50°→75° while the dolly pushes in — a controlled dolly-zoom. Roll to 4°, glyphs velocity-stretch into trails, then hard deceleration fires a shockwave.',
+   div:'Mobile stretches trails to 7× rather than 13× — a phone GPU renders fewer, larger glyphs, so heavy smearing reads as mush instead of motion.'},
+  {n:'III — Šest disciplina. Jedan tim.',
+   cam:'The cylinder separates into six constellations and the camera pulls back and up, revealing six ordered systems where there was one mass.',
+   div:'This is the real split. Desktop spreads the six across a 3-column grid; mobile stacks them vertically and reveals one at a time, because six cards cannot fit a phone-height pin.'},
+  {n:'IV — Handoff',
+   cam:'Canvas fades to 22% as the six constellations settle into the six service cards.',
+   div:'Object continuity across the section boundary, replacing a hard cut. Same behaviour on both.'}
+];
+
+var scrubbing = false, playing = false;
+function maxScroll(c){ return c.el.scrollHeight - c.el.clientHeight; }
+
+function setFrac(f){
+  D.el.scrollTop = f * maxScroll(D);
+  M.el.scrollTop = f * maxScroll(M);
+}
+
+var sc = document.getElementById('sc');
+sc.addEventListener('input', function(){ scrubbing = true; setFrac(sc.value/1000); });
+
+/* scrolling either device drives the other, so they stay comparable */
+function link(src,dst){
+  src.el.addEventListener('scroll', function(){
+    if(scrubbing) return;
+    var f = maxScroll(src) ? src.el.scrollTop/maxScroll(src) : 0;
+    dst.el.scrollTop = f * maxScroll(dst);
+    sc.value = Math.round(f*1000);
+  }, {passive:true});
+}
+link(D,M); link(M,D);
+D.el.addEventListener('pointerdown',function(){scrubbing=false;});
+M.el.addEventListener('pointerdown',function(){scrubbing=false;});
+D.el.addEventListener('wheel',function(){scrubbing=false;},{passive:true});
+M.el.addEventListener('wheel',function(){scrubbing=false;},{passive:true});
+
+var playBtn = document.getElementById('play');
+playBtn.addEventListener('click', function(){
+  playing = !playing;
+  playBtn.setAttribute('aria-pressed', playing?'true':'false');
+  playBtn.textContent = playing ? 'Pause' : 'Play';
+  if(playing && (+sc.value) >= 998) { sc.value = 0; setFrac(0); }
+});
+
+var tierA = false;
+var tierBtn = document.getElementById('tier');
+tierBtn.addEventListener('click', function(){
+  tierA = !tierA;
+  tierBtn.setAttribute('aria-pressed', tierA?'true':'false');
+  tierBtn.textContent = tierA ? 'Tier B' : 'Tier A';
+  document.body.classList.toggle('tierA', tierA);
+});
+
+var ro = document.getElementById('ro'),
+    nT = document.getElementById('nTitle'), nC = document.getElementById('nCam'), nD = document.getElementById('nDiv'),
+    lastAct = -1;
+
+var t0 = performance.now(), lastT = t0;
+function loop(now){
+  var t = (now - t0)/1000;
+
+  if(playing){
+    var dt = Math.min(0.05,(now-lastT)/1000);
+    var v = (+sc.value) + dt*1000/22;   /* ~22 s for the full pass */
+    if(v >= 1000){ v = 1000; playing=false; playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); }
+    sc.value = v; scrubbing = true; setFrac(v/1000); scrubbing = false;
+  }
+  lastT = now;
+
+  if(!tierA || !D.p){ D.draw(t); M.draw(t); }
+
+  var p = D.p || [0,0,0,0];
+  var act = 0, stp = D.el.scrollTop;
+  for(var ai=0; ai<D.secs.length; ai++){ if(stp >= D.secs[ai].offsetTop - 2) act = ai; }
+  var frac = maxScroll(D) ? D.el.scrollTop/maxScroll(D) : 0;
+  ro.innerHTML = '<span>ACT</span> ' + ['I','II','III','IV'][act]
+               + ' · <span>PROG</span> ' + (frac*100).toFixed(1).padStart(5,'0') + '%';
+  if(act !== lastAct){
+    lastAct = act;
+    nT.textContent = ACTS[act].n;
+    nC.textContent = ACTS[act].cam;
+    nD.textContent = ACTS[act].div;
+  }
+  requestAnimationFrame(loop);
+}
+
+if(reduce){
+  tierA = true;
+  document.body.classList.add('tierA');
+  tierBtn.setAttribute('aria-pressed','true');
+  tierBtn.textContent = 'Tier B';
+}
+D.draw(0); M.draw(0);
+nT.textContent = ACTS[0].n; nC.textContent = ACTS[0].cam; nD.textContent = ACTS[0].div;
+requestAnimationFrame(loop);
+})();
+</script>

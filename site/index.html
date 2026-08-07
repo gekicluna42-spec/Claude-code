@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Digital X — Prisustvo koje se pamti</title>
+<meta name="description" content="Digital X gradi digitalna prisustva koja prodaju. Web i e-commerce, aplikacije, SEO / GEO / AEO, oglašavanje, sadržaj i AI automatizacija." />
+<meta name="theme-color" content="#05080c" />
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305080c'/%3E%3Cpath d='M9 9l14 14M23 9L9 23' stroke='%235fc9ff' stroke-width='3'/%3E%3C/svg%3E" />
+<link rel="preload" as="image" href="assets/img/x-poster.jpg" fetchpriority="high" />
+<link rel="preload" as="video" href="assets/video/x-proxy-480.mp4" type="video/mp4" />
+<link rel="stylesheet" href="styles.css" />
+
+<!--
+  Tier gate, inline and before first paint.
+
+  `js`    — the engine is going to drive the acts, so they may start
+            hidden. Without it every act stays readable, which is the
+            correct no-JS rendering rather than a blank pinned stage.
+  `still` — no scrub for this visitor (reduced motion, Save-Data, or a
+            browser that cannot decode the master). Flattens the pin so
+            the copy is never trapped behind a film that will not run.
+-->
+<script>
+(function () {
+  var h = document.documentElement;
+  h.className += ' js';
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var saveData = (navigator.connection || {}).saveData === true;
+  var v = document.createElement('video');
+  var h264 = !!v.canPlayType && [
+    'video/mp4; codecs="avc1.640028"',
+    'video/mp4; codecs="avc1.4d401f"',
+    'video/mp4; codecs="avc1.42E01E"'
+  ].some(function (t) { return v.canPlayType(t) !== ''; });
+  if (reduce || saveData || !h264) h.className += ' still';
+})();
+</script>
+</head>
+<body>
+
+<a class="skip" href="#sadrzaj">Preskoči na sadržaj</a>
+
+<header class="topbar" id="topbar">
+  <span class="topbar__brand">DIGITAL<span class="topbar__x">X</span></span>
+  <nav class="topbar__nav" aria-label="Glavna navigacija">
+    <a href="#discipline">Discipline</a>
+    <a href="#rad">Rad</a>
+    <a href="#kontakt">Kontakt</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- ============================================================
+     THE CINEMATIC — one pinned stage, one scrubbed master film
+     ============================================================ -->
+<section class="cine" id="cine" aria-label="Uvodna kinematografija">
+  <div class="cine__stage" id="stage">
+
+    <div class="cine__media" id="media">
+      <!-- low-res proxy: scrubbable within a few hundred ms of first paint -->
+      <video id="filmProxy" class="film film--proxy" muted playsinline preload="auto"
+             disablepictureinpicture disableremoteplayback
+             poster="assets/img/x-poster-sm.jpg" aria-hidden="true" tabindex="-1">
+        <source src="assets/video/x-proxy-480.mp4" type="video/mp4" />
+      </video>
+
+      <!-- full-quality master: swapped in once it is buffered end-to-end -->
+      <video id="filmHQ" class="film film--hq" muted playsinline preload="none"
+             disablepictureinpicture disableremoteplayback
+             aria-hidden="true" tabindex="-1"></video>
+
+      <!-- reduced-motion / no-video fallback -->
+      <img id="filmPoster" class="film film--poster" src="assets/img/x-poster.jpg" alt="" />
+
+      <div class="cine__scrim" id="scrim" aria-hidden="true"></div>
+      <div class="cine__vignette" aria-hidden="true"></div>
+      <div class="cine__grain" aria-hidden="true"></div>
+    </div>
+
+    <!-- ---------- Act I ----------
+         data-in is negative on purpose: the act must already be fully
+         resolved at scroll 0, or the landing view is a film with no
+         headline on it. -->
+    <article class="act" data-in="-0.06" data-out="0.17" data-rise="34">
+      <p class="eyebrow">Digitalna agencija &middot; MMXXVI</p>
+      <h1 class="display display--xl">Prisustvo<br />koje se <em>pamti</em>.</h1>
+      <p class="lead">Web. Marketing. Inteligencija.</p>
+    </article>
+
+    <!-- ---------- Act II ---------- -->
+    <article class="act" data-in="0.19" data-out="0.42" data-rise="30">
+      <h2 class="display">Ne pravimo web stranice.<br /><em>Gradimo digitalna prisustva</em><br />koja prodaju.</h2>
+      <hr class="hair" />
+      <p class="lead">Svaka linija koda ima jedan zadatak: vaš rast.</p>
+    </article>
+
+    <!-- ---------- Act III — six panels fly in, six cards land ---------- -->
+    <article class="act act--wide" data-in="0.44" data-out="0.83" data-rise="18">
+      <p class="eyebrow">Anatomija rasta</p>
+      <h2 class="display display--sm">Šest disciplina. <em>Jedan tim.</em></h2>
+      <ol class="cards">
+        <li class="card" data-at="0.50"><span class="card__n">I.</span><h3>Web &amp; E-commerce</h3><p>Stranice i trgovine koje se učitavaju ispod dvije sekunde — i prodaju.</p></li>
+        <li class="card" data-at="0.545"><span class="card__n">II.</span><h3>Aplikacije</h3><p>Rješenja po mjeri vaših procesa. iOS, Android, web.</p></li>
+        <li class="card" data-at="0.59"><span class="card__n">III.</span><h3>SEO / GEO / AEO</h3><p>Google. Mape. AI pretraživači. Prva AEO agencija u BiH.</p></li>
+        <li class="card" data-at="0.635"><span class="card__n">IV.</span><h3>Oglašavanje</h3><p>Meta i Google kampanje mjerene jednim brojem: povratom.</p></li>
+        <li class="card" data-at="0.68"><span class="card__n">V.</span><h3>Sadržaj &amp; Produkcija</h3><p>Copy, mreže, foto i video koji zaustavljaju palac.</p></li>
+        <li class="card" data-at="0.725"><span class="card__n">VI.</span><h3>AI Automatizacija</h3><p>Chatbot, podsjetnici, recenzije. Radnik koji ne spava.</p></li>
+      </ol>
+    </article>
+
+    <!-- ---------- Act IV — handoff ---------- -->
+    <article class="act" data-in="0.86" data-out="1.01" data-rise="26">
+      <h2 class="display">Spremni da vas<br /><em>pronađu</em>?</h2>
+      <div class="cta">
+        <a class="btn btn--primary" href="#kontakt">Besplatne konzultacije</a>
+        <a class="btn" href="#kontakt">Analiza sajta</a>
+      </div>
+    </article>
+
+    <!-- ---------- chrome ---------- -->
+    <div class="hint" id="hint" aria-hidden="true"><span class="hint__word">Skrolaj</span><span class="hint__rule"></span></div>
+
+    <div class="rail" id="rail" aria-hidden="true">
+      <div class="rail__track"><div class="rail__fill" id="railFill"></div></div>
+      <div class="rail__acts">
+        <span data-at="0.02">I</span><span data-at="0.28">II</span><span data-at="0.62">III</span><span data-at="0.92">IV</span>
+      </div>
+    </div>
+
+    <p class="tier" id="tier" aria-hidden="true">proxy</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     PAGE BODY — ordinary, fast, crawlable
+     ============================================================ -->
+<div id="sadrzaj">
+
+<section class="band" id="discipline">
+  <p class="eyebrow">Šta radimo</p>
+  <h2 class="display display--sm">Šest disciplina, <em>jedan račun</em> za rast.</h2>
+  <div class="grid">
+    <div class="tile"><h3>Web &amp; E-commerce</h3><p>Jasan put do upita. Stranice koje se učitavaju ispod dvije sekunde.</p></div>
+    <div class="tile"><h3>Aplikacije po mjeri</h3><p>Portali, booking sistemi, interni alati. iOS, Android, web.</p></div>
+    <div class="tile"><h3>SEO &middot; GEO &middot; AEO</h3><p>Google, mape i AI odgovori. Prva AEO agencija u BiH.</p></div>
+    <div class="tile"><h3>Oglašavanje &amp; rast</h3><p>Meta i Google kampanje uz landing stranice koje konvertuju.</p></div>
+    <div class="tile"><h3>Sadržaj &amp; Produkcija</h3><p>Copy, društvene mreže, foto i video koji zaustavljaju palac.</p></div>
+    <div class="tile"><h3>AI Automatizacija</h3><p>Chatbot, podsjetnici i recenzije. Radnik koji ne spava.</p></div>
+  </div>
+</section>
+
+<section class="band band--split" id="rad">
+  <div>
+    <p class="eyebrow">Kako radimo</p>
+    <h2 class="display display--sm">Jedan tim od <em>prve skice</em> do zadnjeg mjerenja.</h2>
+  </div>
+  <ol class="steps">
+    <li><span>01</span><h3>Analiza</h3><p>Mjerimo šta sajt danas radi — brzinu, tok, upite. Bez pretpostavki.</p></li>
+    <li><span>02</span><h3>Arhitektura</h3><p>Struktura, poruka i put do upita prije nego što se nacrta jedan piksel.</p></li>
+    <li><span>03</span><h3>Izrada</h3><p>Dizajn i kod u istoj sobi. Budžet brzine je dio specifikacije.</p></li>
+    <li><span>04</span><h3>Rast</h3><p>SEO, kampanje i automatizacija na već brzoj osnovi.</p></li>
+  </ol>
+</section>
+
+<section class="band band--cta" id="kontakt">
+  <h2 class="display">Recite nam gdje <em>zapinje</em>.</h2>
+  <p class="lead">Besplatna analiza sajta u roku od 48 sati. Bez obaveza.</p>
+  <div class="cta">
+    <a class="btn btn--primary" href="mailto:info@digital-x-marketing.com">info@digital-x-marketing.com</a>
+  </div>
+</section>
+
+<footer class="foot">
+  <span>Digital X &middot; Intelligent Digital Solutions</span>
+  <span>MMXXVI</span>
+</footer>
+
+</div>
+</main>
+
+<script src="cinematic.js" defer></script>
+</body>
+</html>
