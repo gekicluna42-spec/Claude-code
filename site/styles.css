@@ -1,0 +1,417 @@
+/* ============================================================
+   Digital X — scroll-driven cinematic
+   Every height in the cinematic resolves from svh, never vh: on
+   mobile, vh re-measures when the URL bar hides and the scrub
+   jumps mid-scroll.
+   ============================================================ */
+
+:root {
+  --bg:      #05080c;
+  --bg-2:    #070c13;
+  --ink:     #eaf2ff;
+  --dim:     rgba(234, 242, 255, 0.60);
+  --faint:   rgba(234, 242, 255, 0.34);
+  --accent:  #5fc9ff;
+  --line:    rgba(95, 201, 255, 0.16);
+
+  --serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono:  ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* scroll travel of the pinned stage — 372 frames need room to breathe */
+  --travel: 460svh;
+  --gutter: clamp(1.25rem, 5vw, 5rem);
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+img, video { display: block; max-width: 100%; }
+
+.skip {
+  position: fixed; top: -100px; left: 1rem; z-index: 999;
+  padding: 0.7rem 1rem; background: var(--accent); color: #04070a;
+  font: 600 0.8rem/1 var(--sans); border-radius: 4px; text-decoration: none;
+}
+.skip:focus { top: 1rem; }
+
+/* ---------------------------------------------------------- topbar */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.1rem var(--gutter);
+  mix-blend-mode: difference;
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.topbar__brand {
+  font: 500 0.82rem/1 var(--mono);
+  letter-spacing: 0.32em; color: #fff;
+}
+.topbar__x { color: var(--accent); }
+.topbar__nav { display: flex; gap: 1.6rem; }
+.topbar__nav a {
+  font: 500 0.72rem/1 var(--mono);
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: #fff; text-decoration: none; opacity: 0.75;
+  transition: opacity 0.25s ease;
+}
+.topbar__nav a:hover { opacity: 1; }
+
+/* ============================================================
+   THE CINEMATIC
+   ============================================================ */
+.cine { position: relative; height: var(--travel); }
+
+.cine__stage {
+  position: sticky; top: 0;
+  height: 100svh;
+  overflow: clip;
+  background: var(--bg);
+}
+
+.cine__media { position: absolute; inset: 0; }
+
+.film {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center 48%;
+  /* velocity-driven scale is written here by JS as --push */
+  transform: scale(calc(1.02 + var(--push, 0) * 0.03));
+  transform-origin: center 52%;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.film--proxy  { z-index: 1; filter: blur(0.4px); }
+.film--hq     { z-index: 2; opacity: 0; transition: opacity 0.45s ease; }
+.film--poster { z-index: 3; opacity: 0; transition: opacity 0.3s ease; }
+
+/* tier flags flipped by JS */
+.is-hq   .film--hq     { opacity: 1; }
+.is-still .film--poster { opacity: 1; }
+.is-still .film--proxy,
+.is-still .film--hq     { opacity: 0; }
+
+/* Copy legibility. The panel wall is bright and busy by Act III, so a
+   scrim fades in underneath whichever act is on screen — tied to act
+   opacity rather than left on permanently, so the film is never dulled
+   during the beats that have no copy over them. */
+.cine__scrim {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  opacity: var(--s, 0);
+  background:
+    linear-gradient(to right, rgba(5, 8, 12, 0.92) 0%, rgba(5, 8, 12, 0.7) 45%, rgba(5, 8, 12, 0.3) 100%),
+    linear-gradient(to top, rgba(5, 8, 12, 0.7) 0%, transparent 45%);
+}
+
+.cine__vignette {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none;
+  background:
+    radial-gradient(120% 78% at 50% 46%, transparent 38%, rgba(5, 8, 12, 0.55) 78%, rgba(5, 8, 12, 0.92) 100%),
+    linear-gradient(to bottom, rgba(5, 8, 12, 0.72) 0%, transparent 22%, transparent 62%, rgba(5, 8, 12, 0.88) 100%);
+}
+
+.cine__grain {
+  position: absolute; inset: -50%; z-index: 7; pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------------------------------------------------------- acts */
+.act {
+  position: absolute; z-index: 10;
+  left: var(--gutter); right: var(--gutter);
+  top: 50%;
+  max-width: 46rem;
+  /* readable by default — only the engine is allowed to hide an act,
+     so a no-JS render is the full text rather than an empty stage */
+  opacity: 1;
+  transform: translate3d(0, calc(-50% + var(--y, 0px)), 0);
+  will-change: opacity, transform;
+  pointer-events: none;
+}
+html.js .act { opacity: var(--o, 0); }
+.act--wide { max-width: min(84rem, 100%); }
+.act a { pointer-events: auto; }
+
+.eyebrow {
+  margin: 0 0 1.1rem;
+  font: 500 0.68rem/1 var(--mono);
+  letter-spacing: 0.34em; text-transform: uppercase;
+  color: var(--accent); opacity: 0.85;
+}
+
+.display {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(2rem, 5.4vw, 4.4rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 40px rgba(5, 8, 12, 0.85);
+}
+.display--xl { font-size: clamp(2.6rem, 8vw, 6.6rem); }
+.display--sm { font-size: clamp(1.6rem, 3.4vw, 2.6rem); }
+.display em {
+  font-style: italic;
+  color: var(--accent);
+  text-shadow: 0 0 38px rgba(95, 201, 255, 0.35);
+}
+
+.hair {
+  width: 6rem; height: 0; margin: 1.6rem 0;
+  border: 0; border-top: 1px solid var(--line);
+}
+
+.lead {
+  margin: 1.2rem 0 0;
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+  line-height: 1.6; color: var(--dim); max-width: 34rem;
+}
+
+/* ---------------------------------------------------------- act III cards */
+.cards {
+  list-style: none; margin: 2.2rem 0 0; padding: 0;
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+.card {
+  padding: 1.4rem 1.5rem 1.6rem;
+  background: rgba(5, 8, 12, 0.62);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  opacity: 1;
+  transform: translate3d(0, calc(var(--cy, 14px)), 0);
+  will-change: opacity, transform;
+}
+html.js .card { opacity: var(--co, 0); }
+.card__n {
+  display: block; margin-bottom: 0.7rem;
+  font: 500 0.66rem/1 var(--mono); letter-spacing: 0.24em;
+  color: var(--accent);
+}
+.card h3 {
+  margin: 0 0 0.5rem;
+  font: 500 clamp(0.95rem, 1.3vw, 1.08rem)/1.3 var(--sans);
+  letter-spacing: -0.01em;
+}
+.card p { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--dim); }
+
+/* ---------------------------------------------------------- cta */
+.cta { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 2rem; }
+.btn {
+  display: inline-block; padding: 0.95rem 1.6rem;
+  font: 500 0.78rem/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 2px;
+  transition: border-color 0.25s ease, color 0.25s ease, background 0.25s ease;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn--primary {
+  background: var(--accent); color: #04070a; border-color: var(--accent);
+  font-weight: 600;
+}
+.btn--primary:hover { background: #8ddcff; border-color: #8ddcff; color: #04070a; }
+
+/* ---------------------------------------------------------- chrome */
+.hint {
+  position: absolute; z-index: 12; left: 50%; bottom: 2.2rem;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.7rem;
+  opacity: var(--ho, 1); transition: opacity 0.4s ease;
+}
+.hint__word {
+  font: 500 0.62rem/1 var(--mono); letter-spacing: 0.32em;
+  text-transform: uppercase; color: var(--faint);
+}
+.hint__rule {
+  width: 1px; height: 42px;
+  background: linear-gradient(to bottom, var(--accent), transparent);
+  animation: drip 2.4s ease-in-out infinite;
+}
+@keyframes drip {
+  0%, 100% { transform: scaleY(0.35); transform-origin: top; opacity: 0.4; }
+  50%      { transform: scaleY(1);    transform-origin: top; opacity: 1; }
+}
+
+.rail {
+  position: absolute; z-index: 12; right: var(--gutter); top: 50%;
+  transform: translateY(-50%);
+  display: flex; align-items: center; gap: 0.8rem;
+}
+.rail__track {
+  position: relative; width: 1px; height: 34svh;
+  background: rgba(234, 242, 255, 0.12);
+}
+.rail__fill {
+  position: absolute; inset: 0 0 auto 0;
+  height: calc(var(--p, 0) * 100%);
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(95, 201, 255, 0.7);
+}
+.rail__acts {
+  display: flex; flex-direction: column; justify-content: space-between;
+  height: 34svh;
+  font: 500 0.58rem/1 var(--mono); letter-spacing: 0.18em; color: var(--faint);
+}
+.rail__acts span { transition: color 0.3s ease; }
+.rail__acts span.on { color: var(--accent); }
+
+.tier {
+  position: absolute; z-index: 12; left: var(--gutter); bottom: 1.6rem; margin: 0;
+  font: 500 0.56rem/1 var(--mono); letter-spacing: 0.24em; text-transform: uppercase;
+  color: rgba(234, 242, 255, 0.22);
+}
+
+/* ============================================================
+   PAGE BODY
+   ============================================================ */
+.band {
+  position: relative; z-index: 2;
+  padding: clamp(5rem, 12vh, 9rem) var(--gutter);
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+.band--split {
+  display: grid; gap: clamp(2rem, 5vw, 5rem);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+}
+.band--cta { text-align: center; background: var(--bg-2); }
+.band--cta .lead { margin-inline: auto; }
+.band--cta .cta { justify-content: center; }
+
+.grid {
+  margin-top: 3rem;
+  display: grid; gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--line); border: 1px solid var(--line);
+}
+.tile { padding: 1.9rem 1.7rem 2.1rem; background: var(--bg); }
+.tile h3 { margin: 0 0 0.6rem; font: 500 1.05rem/1.3 var(--sans); }
+.tile p  { margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--dim); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.6rem; }
+.steps li {
+  display: grid; grid-template-columns: 3rem 1fr; gap: 1rem;
+  padding-bottom: 1.6rem; border-bottom: 1px solid var(--line);
+}
+.steps span { font: 500 0.7rem/1.6 var(--mono); color: var(--accent); letter-spacing: 0.14em; }
+.steps h3 { margin: 0 0 0.35rem; font: 500 1.05rem/1.3 var(--sans); }
+.steps p  { margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--dim); }
+
+.foot {
+  display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  padding: 2rem var(--gutter);
+  border-top: 1px solid var(--line);
+  font: 500 0.64rem/1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ============================================================
+   MOBILE — a different edit, not the desktop edit scaled down.
+   The film keeps its 16:9 composition in a band (the panel wall
+   is the content; a portrait crop would throw half of it away)
+   and the copy lives underneath it instead of on top of it.
+   ============================================================ */
+@media (max-width: 860px) {
+  :root { --travel: 380svh; }
+
+  .cine__media { inset: 6svh 0 auto 0; height: 46svh; }
+  .film { object-fit: contain; transform: scale(calc(1 + var(--push, 0) * 0.02)); }
+
+  .cine__vignette {
+    background:
+      radial-gradient(90% 70% at 50% 50%, transparent 40%, rgba(5, 8, 12, 0.5) 82%, var(--bg) 100%),
+      linear-gradient(to bottom, rgba(5, 8, 12, 0.6) 0%, transparent 20%, transparent 70%, var(--bg) 100%);
+  }
+
+  /* clears the scroll hint, which sits at the bottom edge */
+  .act { top: auto; bottom: 13svh; max-width: none; transform: translate3d(0, var(--y, 0px), 0); }
+
+  /* copy sits under the film band on mobile, so the scrim weights
+     downward instead of leftward */
+  .cine__scrim {
+    background: linear-gradient(to top, var(--bg) 0%, rgba(5, 8, 12, 0.92) 38%, transparent 62%);
+  }
+
+  .cards { grid-template-columns: 1fr; max-height: 34svh; overflow: hidden; }
+  .card { padding: 0.85rem 1rem; }
+  .card p { display: none; }
+  .card__n { display: inline; margin-right: 0.6rem; }
+  .card h3 { display: inline; }
+
+  .rail { display: none; }
+  .topbar__nav { display: none; }
+
+  .band--split { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .grid, .cards { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   THE STILL TIER — no scrub, no pin, poster and then the page.
+
+   Reached three ways: reduced motion, Save-Data, or a browser that
+   cannot decode the master. All three are flagged as html.still by
+   the inline gate in the document head.
+
+   The @media block below repeats it for the no-JS case, where the
+   gate never runs but a reduced-motion visitor still must not be
+   handed a pinned stage over a film that will never move.
+   ============================================================ */
+html.still .cine,
+.cine.cine--flat { height: auto; }
+
+html.still .cine__stage { position: static; height: auto; }
+html.still .cine__media { position: relative; inset: auto; height: 62svh; }
+html.still .film { position: absolute; }
+html.still .hint,
+html.still .rail { display: none; }
+html.still .act {
+  position: static; opacity: 1; transform: none;
+  max-width: none; padding: clamp(3rem, 8vh, 5rem) var(--gutter) 0;
+  left: 0; right: 0; pointer-events: auto;
+}
+html.still .card { opacity: 1; transform: none; }
+html.still .cards { max-height: none; grid-template-columns: repeat(3, 1fr); }
+html.still .card p { display: block; }
+
+@media (max-width: 860px) {
+  html.still .cards { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cine { height: auto; }
+  .cine__stage { position: static; height: auto; }
+  .cine__media { position: relative; inset: auto; height: 62svh; }
+  .film { position: absolute; }
+  .hint, .rail { display: none; }
+  .act {
+    position: static; opacity: 1 !important; transform: none !important;
+    max-width: none; padding: clamp(3rem, 8vh, 5rem) 0 0;
+    left: 0; right: 0; pointer-events: auto;
+  }
+  .card { opacity: 1 !important; transform: none !important; }
+  .cards { max-height: none; }
+  .card p { display: block; }
+  .hint__rule { animation: none; }
+}
