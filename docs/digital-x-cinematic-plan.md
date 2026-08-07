@@ -289,7 +289,94 @@ Phase 3 is worth calling out: **render the fallback video out of the WebGL scene
 
 ---
 
-## 8. Summary of the recommendation
+## 8. Recommendations
+
+Everything above is analysis. This section is what I would actually do, in order.
+
+### 8.1 Priority-ordered action list
+
+**P0 — do this week, independent of the cinematic rebuild.** These are pure wins with no design risk, and two of them are blockers for everything in §4.
+
+| # | Action | Impact | Effort | Blocker for |
+|---|---|---|---|---|
+| 1 | `vh` → `svh` across `#cine-zone`; size canvas from `visualViewport` | Fixes a visible scrub jump on every phone | 1 h | all mobile choreography |
+| 2 | Add `media-src 'self'` and `worker-src 'self' blob:` to CSP | Unblocks the entire media pipeline | 15 min | §4 video bands, Tier C/D |
+| 3 | Remove the duplicate `style.css` / `fonts.css` links | Restores the async-CSS trick that is currently dead | 15 min | — |
+| 4 | Replace the `frozen = true` kill switch with graceful degradation | Stops one GC pause from killing the hero for the session | 1 h | — |
+| 5 | `font-display: swap` + `size-adjust` fallback + preload the latin subset | Brand serif stops silently vanishing on slow first visits | 1 h | — |
+| 6 | Self-host Lenis; init on first input instead of `setTimeout(500)` | Removes a third-party handshake and the 500 ms native-scroll gap | 1 h | tightening `script-src` |
+
+**P1 — the rebuild.** Phases 1–3 of §6. Renderer swap to WebGL2, the Act II dolly-zoom, the Act III constellation resolve, the Act IV handoff, and the offline master render.
+
+**P2 — the video bands.** Phase 4. Genuinely optional: the site works and wins without V2–V10. Ship them when the hero is stable, not alongside it.
+
+### 8.2 Stack — what to use, and what to refuse
+
+| Need | Recommendation | Why |
+|---|---|---|
+| 3D renderer | **Raw WebGL2 + custom GLSL.** No framework. | The scene is one instanced glyph draw plus a particle pass. Three.js would add ~600 KB gz to render something a 20 KB module does better. |
+| If a framework is non-negotiable | **OGL**, not Three.js | ~10 KB gz, same mental model, no scene-graph overhead you won't use |
+| Smooth scroll | **Lenis** (already in use) — self-hosted | Correct choice already made. Keep `lerp .055`, keep `smoothTouch` off. |
+| Scroll binding | Hand-rolled rAF + `IntersectionObserver` (already in `cinema.js`) | The existing `requestTargets()` coalescing is correct. **Do not add GSAP ScrollTrigger** — it is ~50 KB gz to replace ~30 lines that already work. |
+| Frame decode (Tier C) | **WebCodecs `VideoDecoder`** + `mp4box.js` for demux | Image-sequence scrub quality at video payload size |
+| Offline master render | **Headless Chromium**, step the scroll uniform manually, `page.screenshot()` per frame | Deterministic; guarantees Tier C/D match Tier B exactly |
+| Build | Keep it static. No bundler needed for one ES module. | The site is hand-written static HTML on Vercel and is faster for it |
+
+**Refuse:** Three.js, GSAP, Locomotive Scroll, any 3D model loader. Nothing in this design loads a mesh — it is all procedural geometry and math. Every one of those libraries costs more than the entire hero renderer.
+
+### 8.3 Video generation — which model for which asset
+
+Verify current availability before committing budget; capabilities move fast.
+
+| Asset | Model characteristic to select for | Note |
+|---|---|---|
+| **V1 / V1m** hero master | **Don't generate these.** Render them out of the WebGL scene. | An AI-generated hero will not match the real-time Tier B render, and the mismatch is visible the moment a user switches devices |
+| **V2** galaxy, **V10** closing | Slow, stable camera; strong temporal coherence over 8–12 s | These drift most; generate 1.5× length and cut |
+| **V3–V8** service loops | Macro/product realism, tight prompt adherence on materials | Short clips, so drift matters less; iterate cheaply |
+| **V9** portfolio wipe | Controllable single-direction motion | The wipe must be linear and even — reject any take where it accelerates |
+
+Budget **3–5 generations per accepted clip.** Ten assets is realistically 40–50 generations. Plan for it.
+
+### 8.4 Delivery
+
+- **Hashed filenames + `Cache-Control: max-age=31536000, immutable`** for CSS/JS/video/fonts. The site currently serves `max-age=0, must-revalidate` on everything, so returning visitors revalidate assets that never change.
+- **Serve media same-origin from `/assets/videos/`.** Vercel handles range requests correctly, and it sidesteps the CSP problem entirely rather than widening the policy for a CDN.
+- **`content-visibility: auto` + `contain-intrinsic-size`** on every section below `#cine-zone`. On a page this long it is one of the largest rendering-work wins available.
+- Keep the strict CSP. Once Lenis is self-hosted, `script-src` can drop `https://cdn.jsdelivr.net`.
+
+### 8.5 Measurement — how you know it worked
+
+Test on the hardware the audience actually has, not on a MacBook:
+
+- **A real mid-range Android on throttled 4G** is the acceptance device. A Moto G-class phone. If the hero holds 50+ fps there, it holds everywhere.
+- **Instrument the tier split.** Log which of Tiers A–D each visitor gets. If Tier B is under ~85%, the probe is too strict or the shader is too expensive — that number is the health metric for the whole approach.
+- **Watch scroll depth through `#cine-zone`.** If a meaningful share of users bail inside Acts I–III, the zone is too long. That is the signal to cut travel below 400vh, and it is the only honest way to settle the length question.
+- **Track LCP and INP in the field** (`web-vitals` → GA4, which is already loaded), not just in Lighthouse. Lab numbers will not surface the URL-bar resize jank.
+
+### 8.6 If the budget or timeline is short
+
+Cut in this order — each line is still a materially better site than today:
+
+1. Ship **P0 only**. Six fixes, roughly a day. The existing Canvas 2D cinematic stays.
+2. Add the **WebGL renderer swap** with the existing choreography unchanged (Phase 1). Biggest visual gain per hour of the whole plan.
+3. Add **Act II** (dolly-zoom + trails + shockwave). One act, and it is the shot people remember.
+4. Everything else.
+
+**Do not** start with the video bands. They are the most expensive phase and the least load-bearing.
+
+### 8.7 Risks worth naming up front
+
+| Risk | Mitigation |
+|---|---|
+| WebGL hero costs battery/thermals on low-end Android | Tier probe + degrade (drop DPR, drop columns) — never freeze |
+| 400vh of pinned scroll reads as a trap to some users | Measure scroll depth (§8.5); the `svh` fix removes the jank that makes it feel longer than it is |
+| AI-generated clips drift off-palette | Locked palette + shared negative prompt + black-point clamp, all in the prompt pack |
+| Cinematic hides content from AI answer engines | All copy stays live DOM text; nothing renders into the canvas. Non-negotiable for an agency selling AEO. |
+| Rebuild regresses the existing working hero | Keep `cinema.js` behind a flag until WebGL parity is confirmed on the acceptance device |
+
+---
+
+## 9. Summary of the recommendation
 
 1. **Keep the concept and the copy.** They're already good.
 2. **Hero is real-time WebGL, not video** — the content is procedural, video would be bigger, blurrier, less interactive, and would break the agency's own speed claim.
