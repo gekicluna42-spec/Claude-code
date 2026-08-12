@@ -334,13 +334,23 @@ input[type="submit"]:hover {
 	overflow: hidden;
 }
 
-/* Scrubbed heroes need scroll distance to scrub through. */
-.hero[data-video]:not([data-video=""]) { min-height: 220vh; align-items: flex-start; }
+/* Scroll-driven heroes — scrubbed video or the 3D field — need scroll distance
+   to move through, so the section is taller than the viewport and its media is
+   pinned while the reader scrolls past it. */
+.hero[data-video]:not([data-video=""]),
+.hero.is-3d { min-height: 220vh; align-items: flex-start; }
+
 .hero[data-video]:not([data-video=""]) .hero__media,
 .hero[data-video]:not([data-video=""]) .hero__vignette,
 .hero[data-video]:not([data-video=""]) .hero__content,
-.hero[data-video]:not([data-video=""]) .hero__scrollhint { position: fixed; }
-.hero[data-video]:not([data-video=""]) .hero__content {
+.hero[data-video]:not([data-video=""]) .hero__scrollhint,
+.hero.is-3d .hero__media,
+.hero.is-3d .hero__vignette,
+.hero.is-3d .hero__content,
+.hero.is-3d .hero__scrollhint { position: fixed; }
+
+.hero[data-video]:not([data-video=""]) .hero__content,
+.hero.is-3d .hero__content {
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
@@ -349,6 +359,7 @@ input[type="submit"]:hover {
 .hero__media { position: absolute; inset: 0; }
 
 .hero__canvas,
+.hero__gl,
 .hero__video,
 .hero__poster {
 	position: absolute;
@@ -359,6 +370,9 @@ input[type="submit"]:hover {
 	object-fit: cover;
 }
 
+/* The 3D field renders on transparent, so it needs the dark ground behind it. */
+.hero__gl { background: radial-gradient(ellipse 80% 60% at 50% 45%, #1d1410 0%, var(--ink) 70%); }
+
 .hero__poster { opacity: 0; transition: opacity 0.6s; }
 .hero__poster.is-visible { opacity: 1; }
 
@@ -366,6 +380,8 @@ input[type="submit"]:hover {
 	position: absolute;
 	inset: 0;
 	background:
+		/* Centre scrim: the strand field is bright behind the headline. */
+		radial-gradient(ellipse 52% 34% at 50% 47%, rgba(15, 11, 9, 0.74), transparent 72%),
 		radial-gradient(ellipse 90% 70% at 50% 42%, transparent 30%, rgba(15, 11, 9, 0.55) 75%, var(--ink) 100%),
 		linear-gradient(to bottom, rgba(15, 11, 9, 0.55), transparent 30%, transparent 62%, var(--ink) 100%);
 }
@@ -1124,12 +1140,17 @@ textarea::placeholder { color: rgba(183, 171, 155, 0.6); }
 		padding: 0 0 0 16px;
 	}
 
-	/* Scrubbing is disabled on mobile, so the hero returns to normal flow. */
-	.hero[data-video]:not([data-video=""]) { min-height: 100svh; align-items: center; }
+	/* Scroll-driven heroes are disabled on mobile, so the hero returns to flow. */
+	.hero[data-video]:not([data-video=""]),
+	.hero.is-3d { min-height: 100svh; align-items: center; }
 	.hero[data-video]:not([data-video=""]) .hero__media,
 	.hero[data-video]:not([data-video=""]) .hero__vignette,
-	.hero[data-video]:not([data-video=""]) .hero__scrollhint { position: absolute; }
-	.hero[data-video]:not([data-video=""]) .hero__content {
+	.hero[data-video]:not([data-video=""]) .hero__scrollhint,
+	.hero.is-3d .hero__media,
+	.hero.is-3d .hero__vignette,
+	.hero.is-3d .hero__scrollhint { position: absolute; }
+	.hero[data-video]:not([data-video=""]) .hero__content,
+	.hero.is-3d .hero__content {
 		position: relative;
 		top: auto;
 		left: auto;

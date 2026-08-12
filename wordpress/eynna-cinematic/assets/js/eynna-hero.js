@@ -2,8 +2,9 @@
  * Cinematic hero.
  *
  * Tier 1: a video is configured        -> scroll position scrubs currentTime
- * Tier 2: no video                     -> canvas strand animation
- * Tier 3: reduced motion or narrow vp  -> static poster, nothing animates
+ * Tier 2: WebGL2 available             -> scroll-driven 3D strand field
+ * Tier 3: no WebGL2                    -> 2D canvas strand animation
+ * Tier 4: reduced motion or narrow vp  -> static poster / single frame
  *
  * iOS handles programmatic video seeking poorly, so scrubbing is never used
  * below the mobile breakpoint.
@@ -21,7 +22,25 @@
 
   var video = document.getElementById("eynna-hero-video");
   var canvas = document.getElementById("eynna-hero-canvas");
+  var gl3d = document.getElementById("eynna-hero-gl");
   var poster = document.getElementById("eynna-hero-poster");
+
+  /**
+   * Scroll progress through the hero, 0..1.
+   *
+   * @return {number}
+   */
+  function heroProgress() {
+    var rect = hero.getBoundingClientRect();
+    var scrollable = hero.offsetHeight - window.innerHeight;
+    if (scrollable <= 0) {
+      // Hero is not taller than the viewport: drive off page scroll instead so
+      // the effect still responds rather than sitting frozen at 0.
+      var docScroll = window.innerHeight * 1.2;
+      return Math.min(1, Math.max(0, window.scrollY / docScroll));
+    }
+    return Math.min(1, Math.max(0, -rect.top / scrollable));
+  }
 
   // Canvas state, shared by the animated and single-frame paths.
   var ctx = null;
@@ -31,12 +50,13 @@
   var strands = [];
   var frames = 0;
 
-  /* ---------- Tier 3: static ---------- */
+  /* ---------- Tier 4: static ---------- */
   if (staticOnly) {
     if (poster) {
       poster.classList.add("is-visible");
       if (video) video.style.display = "none";
       if (canvas) canvas.style.display = "none";
+      if (gl3d) gl3d.style.display = "none";
       return;
     }
 
@@ -50,8 +70,22 @@
       return;
     }
 
-    // Canvas with no poster: paint a single frame so the hero still has
-    // texture instead of sitting flat black.
+    // One still frame so the hero has texture instead of sitting flat black.
+    // Prefer the 3D field; fall back to the 2D canvas.
+    if (gl3d && window.EynnaHero3D) {
+      var still = window.EynnaHero3D.start(gl3d, {
+        strands: 150,
+        getScroll: function () { return 0.12; },
+        animate: false
+      });
+      if (still) {
+        if (canvas) canvas.style.display = "none";
+        window.__eynna3d = still;
+        return;
+      }
+      gl3d.style.display = "none";
+    }
+
     if (canvas) {
       setupCanvas();
       draw(1200);
@@ -109,7 +143,59 @@
     return;
   }
 
-  /* ---------- Tier 2: canvas strands ---------- */
+  /* ---------- Tier 2: scroll-driven 3D strand field ---------- */
+  if (gl3d && window.EynnaHero3D) {
+    // Smooth the scroll value so the camera glides instead of snapping to
+    // each wheel tick — the same lerp idea as the video scrub.
+    var target3d = heroProgress();
+    var eased3d = target3d;
+
+    window.addEventListener(
+      "scroll",
+      function () { target3d = heroProgress(); },
+      { passive: true }
+    );
+    window.addEventListener("resize", function () { target3d = heroProgress(); });
+
+    // As the camera pushes into the field the strands get dense enough to
+    // fight the headline, so the copy recedes on the way down — which is also
+    // the right cinematic beat, handing off to the section below.
+    var heroContent = hero.querySelector(".hero__content");
+    var scrollHint = hero.querySelector(".hero__scrollhint");
+
+    var handle = window.EynnaHero3D.start(gl3d, {
+      getScroll: function () {
+        eased3d += (target3d - eased3d) * 0.09;
+
+        if (heroContent) {
+          var fade = 1 - Math.min(1, Math.max(0, (eased3d - 0.3) / 0.4));
+          heroContent.style.opacity = String(fade);
+          heroContent.style.transform =
+            "translate(-50%, calc(-50% - " + (eased3d * 60).toFixed(1) + "px))";
+        }
+        if (scrollHint) {
+          scrollHint.style.opacity = String(1 - Math.min(1, eased3d / 0.25));
+        }
+
+        return eased3d;
+      }
+    });
+
+    if (handle) {
+      if (canvas) canvas.style.display = "none";
+      // Pins the hero and gives it scroll distance for the camera to travel.
+      hero.classList.add("is-3d");
+      target3d = heroProgress();
+      eased3d = target3d;
+      window.__eynna3d = handle;
+      return;
+    }
+
+    // WebGL2 advertised but unusable — drop to the 2D canvas.
+    gl3d.style.display = "none";
+  }
+
+  /* ---------- Tier 3: 2D canvas strands ---------- */
   if (!canvas) return;
 
   setupCanvas();

@@ -5,7 +5,14 @@ const puppeteer = require("puppeteer");
 (async () => {
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--no-sandbox"],
+    // Headless Chromium needs a software rasteriser to expose WebGL2, so the
+    // 3D hero tier is exercised here rather than silently falling back.
+    args: [
+      "--no-sandbox",
+      "--enable-unsafe-swiftshader",
+      "--use-gl=angle",
+      "--use-angle=swiftshader",
+    ],
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
@@ -34,15 +41,21 @@ const puppeteer = require("puppeteer");
   const cards = await page.$$(".ccard");
   check("4 collection cards", cards.length === 4);
 
-  // 3. Canvas is animating (frame counter advances)
-  const f1 = await page.evaluate(() => window.__eynna.getFrames());
+  // 3. The hero is animating — whichever tier took over
+  const tier = await page.evaluate(() => (window.__eynna3d ? "3d" : "2d"));
+  const frameCount = () =>
+    page.evaluate(() =>
+      window.__eynna3d ? window.__eynna3d.getFrames() : window.__eynna.getFrames()
+    );
+  const f1 = await frameCount();
   await new Promise((r) => setTimeout(r, 600));
-  const f2 = await page.evaluate(() => window.__eynna.getFrames());
-  check(`hero canvas animating (${f1} → ${f2} frames)`, f2 > f1);
+  const f2 = await frameCount();
+  check(`hero animating via ${tier} (${f1} → ${f2} frames)`, f2 > f1);
 
-  // 4. Canvas has a sane drawing size
-  const cv = await page.$eval("#heroCanvas", (c) => ({ w: c.width, h: c.height }));
-  check(`canvas sized ${cv.w}x${cv.h}`, cv.w > 0 && cv.h > 0);
+  // 4. The active canvas has a sane drawing size
+  const sel = tier === "3d" ? "#eynna-hero-gl" : "#heroCanvas";
+  const cv = await page.$eval(sel, (c) => ({ w: c.width, h: c.height }));
+  check(`${sel} sized ${cv.w}x${cv.h}`, cv.w > 0 && cv.h > 0);
 
   // 5. Preloader dismisses
   await page.waitForFunction(

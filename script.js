@@ -113,14 +113,69 @@ function drawFrame(time) {
   frames++;
 }
 
-if (reducedMotion) {
-  drawFrame(1200); // single static frame
-} else {
-  const loop = (time) => {
-    drawFrame(time);
-    requestAnimationFrame(loop);
+/* ---------- HERO: 3D strand field, with the 2D canvas as fallback ----------
+   Mirrors the WordPress theme's tier chain: WebGL2 when available, the 2D
+   canvas otherwise, a single still frame under reduced motion or on mobile. */
+const heroSection = document.getElementById("top");
+const gl3d = document.getElementById("eynna-hero-gl");
+const narrow = window.innerWidth < 768;
+let used3d = false;
+
+if (gl3d && window.EynnaHero3D && !narrow) {
+  const heroEl = heroSection;
+  const contentEl = document.querySelector(".hero__content");
+  const hintEl = document.querySelector(".hero__scrollhint");
+
+  const progress = () => {
+    const rect = heroEl.getBoundingClientRect();
+    const scrollable = heroEl.offsetHeight - window.innerHeight;
+    if (scrollable <= 0) return 0;
+    return Math.min(1, Math.max(0, -rect.top / scrollable));
   };
-  requestAnimationFrame(loop);
+
+  let target = 0;
+  let eased = 0;
+  window.addEventListener("scroll", () => { target = progress(); }, { passive: true });
+  window.addEventListener("resize", () => { target = progress(); });
+
+  const handle = window.EynnaHero3D.start(gl3d, {
+    animate: !reducedMotion,
+    getScroll: () => {
+      eased += (target - eased) * 0.09;
+      if (contentEl) {
+        const fade = 1 - Math.min(1, Math.max(0, (eased - 0.3) / 0.4));
+        contentEl.style.opacity = String(fade);
+        contentEl.style.transform =
+          "translate(-50%, calc(-50% - " + (eased * 60).toFixed(1) + "px))";
+      }
+      if (hintEl) hintEl.style.opacity = String(1 - Math.min(1, eased / 0.25));
+      return eased;
+    }
+  });
+
+  if (handle) {
+    used3d = true;
+    canvas.style.display = "none";
+    heroEl.classList.add("is-3d");
+    target = progress();
+    eased = target;
+    window.__eynna3d = handle;
+  } else {
+    gl3d.style.display = "none";
+  }
+}
+
+if (!used3d) {
+  if (gl3d) gl3d.style.display = "none";
+  if (reducedMotion) {
+    drawFrame(1200); // single static frame
+  } else {
+    const loop = (time) => {
+      drawFrame(time);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
 }
 
 /* expose a tiny hook so automated checks can see the canvas is alive */
@@ -128,7 +183,7 @@ window.__eynna = { getFrames: () => frames };
 
 /* ---------- HERO PARALLAX ---------- */
 const heroContent = document.querySelector(".hero__content");
-if (!reducedMotion && heroContent) {
+if (!reducedMotion && heroContent && !used3d) {
   window.addEventListener(
     "scroll",
     () => {

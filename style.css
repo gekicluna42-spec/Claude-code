@@ -204,17 +204,29 @@ em { font-style: italic; }
   justify-content: center;
   overflow: hidden;
 }
-.hero__canvas {
+.hero__canvas,
+.hero__gl {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
 }
+.hero__gl { background: radial-gradient(ellipse 80% 60% at 50% 45%, #1d1410 0%, var(--ink) 70%); }
+
+/* Scroll-driven 3D hero: taller section, pinned media. */
+.hero.is-3d { min-height: 220vh; align-items: flex-start; }
+.hero.is-3d .hero__canvas,
+.hero.is-3d .hero__gl,
+.hero.is-3d .hero__vignette,
+.hero.is-3d .hero__content,
+.hero.is-3d .hero__scrollhint { position: fixed; }
+.hero.is-3d .hero__content { top: 50%; left: 50%; transform: translate(-50%, -50%); }
 .hero__vignette {
   position: absolute;
   inset: 0;
   background:
+    radial-gradient(ellipse 52% 34% at 50% 47%, rgba(15, 11, 9, 0.74), transparent 72%),
     radial-gradient(ellipse 90% 70% at 50% 42%, transparent 30%, rgba(15, 11, 9, 0.55) 75%, var(--ink) 100%),
     linear-gradient(to bottom, rgba(15, 11, 9, 0.55), transparent 30%, transparent 62%, var(--ink) 100%);
 }
@@ -678,4 +690,14 @@ body > :not(.hero) .reveal.is-visible { opacity: 1; transform: translateY(0); }
   .hero .reveal,
   .hero__title .hero__line { animation: none; opacity: 1; transform: none; }
   .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
+
+/* Mobile: the 3D tier is static, so the hero returns to normal flow. */
+@media (max-width: 768px) {
+  .hero.is-3d { min-height: 100svh; align-items: center; }
+  .hero.is-3d .hero__canvas,
+  .hero.is-3d .hero__gl,
+  .hero.is-3d .hero__vignette,
+  .hero.is-3d .hero__scrollhint { position: absolute; }
+  .hero.is-3d .hero__content { position: relative; top: auto; left: auto; transform: none; }
 }

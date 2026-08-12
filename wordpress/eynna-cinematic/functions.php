@@ -112,7 +112,9 @@ function eynna_scripts() {
 
 	// The hero bundle is only needed where a hero is actually rendered.
 	if ( eynna_has_hero() ) {
-		wp_enqueue_script( 'eynna-hero', $dir . '/assets/js/eynna-hero.js', array(), EYNNA_VERSION, true );
+		// The 3D renderer must be parsed before the controller that uses it.
+		wp_enqueue_script( 'eynna-hero-3d', $dir . '/assets/js/eynna-hero-3d.js', array(), EYNNA_VERSION, true );
+		wp_enqueue_script( 'eynna-hero', $dir . '/assets/js/eynna-hero.js', array( 'eynna-hero-3d' ), EYNNA_VERSION, true );
 		wp_localize_script(
 			'eynna-hero',
 			'eynnaHero',

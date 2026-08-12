@@ -27,6 +27,7 @@ fontCss = fontCss.replace(/url\(\.\.\/fonts\/([^)]+\.woff2)\)/g, (_, file) => {
 const themeCss = fs.readFileSync(path.join(THEME, "style.css"), "utf8");
 const wooCss = fs.readFileSync(path.join(THEME, "assets/css/woocommerce.css"), "utf8");
 const mainJs = fs.readFileSync(path.join(THEME, "assets/js/eynna.js"), "utf8");
+const hero3dJs = fs.readFileSync(path.join(THEME, "assets/js/eynna-hero-3d.js"), "utf8");
 const heroJs = fs.readFileSync(path.join(THEME, "assets/js/eynna-hero.js"), "utf8");
 
 /* ---------- Extract the body ---------- */
@@ -79,6 +80,9 @@ ${previewCss}
 ${body}
 <script>
 ${mainJs}
+</script>
+<script>
+${hero3dJs}
 </script>
 <script>
 ${heroJs}

@@ -42,6 +42,8 @@ $eynna_allowed = array( 'em' => array(), 'br' => array(), 'strong' => array() );
 				<?php if ( $eynna_poster ) : ?>poster="<?php echo esc_url( $eynna_poster ); ?>"<?php endif; ?>
 				src="<?php echo esc_url( $eynna_video ); ?>"></video>
 		<?php else : ?>
+			<?php // 3D field first; the 2D canvas is the fallback if WebGL2 is unavailable. ?>
+			<canvas class="hero__gl" id="eynna-hero-gl"></canvas>
 			<canvas class="hero__canvas" id="eynna-hero-canvas"></canvas>
 		<?php endif; ?>
 
