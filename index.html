@@ -1,175 +1,254 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bs">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ONYX SUPPLY — MIDNIGHT DROP</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0b'/%3E%3Crect x='8' y='8' width='16' height='16' fill='%23c6ff2e'/%3E%3C/svg%3E" />
+<title>Eynna Hair — Perike, Ekstenzije, Repovi i Topperi | Sarajevo</title>
+<meta name="description" content="Eynna Hair Sarajevo — perike, ekstenzije, repovi i topperi od prirodne ljudske kose i premium vlakana. Prirodan izgled, više volumena i diskretna rješenja. Dostava širom BiH i regije." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120d0a'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='20' fill='%23d9b878' text-anchor='middle'%3EE%3C/text%3E%3C/svg%3E" />
 
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Archivo+Black&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="fonts.css" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- NOISE / GRAIN OVERLAY -->
+<!-- PRELOADER -->
+<div class="preloader" id="preloader" aria-hidden="true">
+  <div class="preloader__mark">
+    <span>E</span><span>Y</span><span>N</span><span>N</span><span>A</span>
+  </div>
+  <div class="preloader__sub">Sarajevo · prirodna ljudska kosa</div>
+</div>
+
+<!-- FILM GRAIN -->
 <div class="grain" aria-hidden="true"></div>
 
-<!-- STICKY NAV -->
+<!-- NAV -->
 <header class="nav" id="nav">
-  <div class="nav__left">
-    <span class="brand">ONYX<span class="brand__dot">.</span>SUPPLY</span>
-  </div>
-  <nav class="nav__center">
-    <a href="#drop">DROP</a>
-    <a href="#grid">SHOP</a>
-    <a href="#macro">FABRIC</a>
-    <a href="#notify">NOTIFY</a>
+  <a class="nav__brand" href="#top">EYNNA<span class="nav__brand-dot">·</span>HAIR</a>
+  <nav class="nav__links">
+    <a href="#kolekcija">Kolekcija</a>
+    <a href="#materijali">Materijali</a>
+    <a href="#zasto">Zašto Eynna</a>
+    <a href="#kontakt">Kontakt</a>
   </nav>
-  <div class="nav__right">
-    <button class="cart-btn" id="cartBtn" aria-label="Open cart">
-      CART <span class="cart-count" id="cartCount">0</span>
-    </button>
-  </div>
+  <a class="nav__cta" href="#kontakt">Konsultacije</a>
 </header>
 
-<!-- HERO: SCROLL-SCRUB VIDEO -->
-<section class="hero" id="hero">
-  <div class="hero__sticky">
-    <video id="heroVideo" class="hero__video" muted playsinline preload="auto"
-      src="assets/videos/cloth-1.mp4"></video>
-    <div class="hero__overlay"></div>
-    <div class="hero__content">
-      <p class="hero__eyebrow">FW MIDNIGHT SERIES / 003</p>
-      <h1 class="hero__title">
-        <span>ONYX</span>
-        <span class="hero__title--stroke">SUPPLY</span>
-        <span class="hero__title--accent">MIDNIGHT</span>
-        <span>DROP</span>
-      </h1>
-      <div class="countdown" id="countdown" aria-label="Countdown to drop">
-        <div class="countdown__unit"><span id="cd-days">00</span><label>DAYS</label></div>
-        <div class="countdown__sep">:</div>
-        <div class="countdown__unit"><span id="cd-hours">00</span><label>HRS</label></div>
-        <div class="countdown__sep">:</div>
-        <div class="countdown__unit"><span id="cd-mins">00</span><label>MIN</label></div>
-        <div class="countdown__sep">:</div>
-        <div class="countdown__unit"><span id="cd-secs">00</span><label>SEC</label></div>
-      </div>
+<!-- HERO -->
+<section class="hero" id="top">
+  <canvas class="hero__gl" id="eynna-hero-gl" aria-hidden="true"></canvas>
+    <canvas class="hero__canvas" id="heroCanvas" aria-hidden="true"></canvas>
+  <div class="hero__vignette" aria-hidden="true"></div>
+  <div class="hero__content">
+    <p class="hero__eyebrow reveal">Sarajevo &nbsp;·&nbsp; perike &nbsp;·&nbsp; ekstenzije &nbsp;·&nbsp; repovi &nbsp;·&nbsp; topperi</p>
+    <h1 class="hero__title">
+      <span class="hero__line"><em>Kosa</em> koja izgleda</span>
+      <span class="hero__line">kao <em>vaša.</em></span>
+    </h1>
+    <p class="hero__sub reveal">
+      Perike, ekstenzije, repovi i topperi od prirodne ljudske kose i premium
+      vlakana — za prirodan izgled, više volumena i diskretna rješenja.
+    </p>
+    <div class="hero__actions reveal">
+      <a class="btn btn--gold" href="#kolekcija">Pogledaj kolekciju</a>
+      <a class="btn btn--ghost" href="#kontakt">Zakaži konsultacije</a>
     </div>
-    <div class="hero__scrollhint">SCROLL TO REVEAL</div>
   </div>
-  <div class="hero__spacer"></div>
+  <div class="hero__scrollhint" aria-hidden="true">
+    <span>Skrolaj</span>
+    <i class="hero__scrollline"></i>
+  </div>
 </section>
 
 <!-- MARQUEE -->
-<div class="marquee">
+<div class="marquee" aria-hidden="true">
   <div class="marquee__track">
-    <span>HEAVYWEIGHT HOODIE — 480GSM</span><span class="marquee__dot">●</span>
-    <span>TACTICAL CARGO PANTS</span><span class="marquee__dot">●</span>
-    <span>CHROME-ACCENT PUFFER</span><span class="marquee__dot">●</span>
-    <span>MIDNIGHT DROP</span><span class="marquee__dot">●</span>
-    <span>HEAVYWEIGHT HOODIE — 480GSM</span><span class="marquee__dot">●</span>
-    <span>TACTICAL CARGO PANTS</span><span class="marquee__dot">●</span>
-    <span>CHROME-ACCENT PUFFER</span><span class="marquee__dot">●</span>
-    <span>MIDNIGHT DROP</span><span class="marquee__dot">●</span>
+    <span>Perike</span><i>●</i>
+    <span>Ekstenzije</span><i>●</i>
+    <span>Repovi</span><i>●</i>
+    <span>Topperi</span><i>●</i>
+    <span>Prirodna ljudska kosa</span><i>●</i>
+    <span>Perike</span><i>●</i>
+    <span>Ekstenzije</span><i>●</i>
+    <span>Repovi</span><i>●</i>
+    <span>Topperi</span><i>●</i>
+    <span>Prirodna ljudska kosa</span><i>●</i>
   </div>
 </div>
 
-<!-- PRODUCT GRID -->
-<section class="grid-section" id="grid">
-  <div class="section-head">
-    <p class="section-head__index">01 / THE FIT</p>
-    <h2 class="section-head__title">THREE PIECES.<br />ONE SILHOUETTE.</h2>
+<!-- KOLEKCIJA -->
+<section class="collection" id="kolekcija">
+  <div class="section-head reveal">
+    <p class="section-head__index">01 / Kolekcija</p>
+    <h2 class="section-head__title">Četiri načina do<br /><em>savršene kose.</em></h2>
   </div>
 
-  <div class="grid" id="productGrid">
-    <!-- Cards injected by JS -->
+  <div class="collection__grid">
+    <article class="ccard reveal" style="--shade1:#1c1512;--shade2:#4a3323;--shade3:#8a5a33">
+      <div class="ccard__media">
+        <div class="ccard__hair" aria-hidden="true"></div>
+        <span class="ccard__tag">Prirodan izgled</span>
+      </div>
+      <div class="ccard__body">
+        <h3 class="ccard__name">Perike</h3>
+        <p class="ccard__desc">Od prirodne ljudske kose i premium vlakana — potpuna transformacija koja se ne primjećuje.</p>
+        <a class="ccard__link" href="#kontakt">Raspitaj se<span>→</span></a>
+      </div>
+    </article>
+
+    <article class="ccard reveal" style="--shade1:#241a11;--shade2:#6b4a26;--shade3:#c99a56">
+      <div class="ccard__media">
+        <div class="ccard__hair" aria-hidden="true"></div>
+        <span class="ccard__tag">Volumen i dužina</span>
+      </div>
+      <div class="ccard__body">
+        <h3 class="ccard__name">Ekstenzije</h3>
+        <p class="ccard__desc">Dužina i volumen bez čekanja — nadogradnja koja se savršeno stapa s vašom kosom.</p>
+        <a class="ccard__link" href="#kontakt">Raspitaj se<span>→</span></a>
+      </div>
+    </article>
+
+    <article class="ccard reveal" style="--shade1:#2b1c10;--shade2:#8a5a2a;--shade3:#e3b878">
+      <div class="ccard__media">
+        <div class="ccard__hair" aria-hidden="true"></div>
+        <span class="ccard__tag">Brza promjena</span>
+      </div>
+      <div class="ccard__body">
+        <h3 class="ccard__name">Repovi</h3>
+        <p class="ccard__desc">Elegantan rep za svaku priliku — pričvršćuje se za nekoliko sekundi, izgleda kao vaš.</p>
+        <a class="ccard__link" href="#kontakt">Raspitaj se<span>→</span></a>
+      </div>
+    </article>
+
+    <article class="ccard reveal" style="--shade1:#181310;--shade2:#5a4636;--shade3:#a8876a">
+      <div class="ccard__media">
+        <div class="ccard__hair" aria-hidden="true"></div>
+        <span class="ccard__tag">Diskretno rješenje</span>
+      </div>
+      <div class="ccard__body">
+        <h3 class="ccard__name">Topperi</h3>
+        <p class="ccard__desc">Diskretno pokrivaju prorijeđenu kosu na tjemenu i vraćaju punoću tamo gdje treba.</p>
+        <a class="ccard__link" href="#kontakt">Raspitaj se<span>→</span></a>
+      </div>
+    </article>
   </div>
 </section>
 
-<!-- MARQUEE 2 -->
-<div class="marquee marquee--accent">
-  <div class="marquee__track marquee__track--rev">
-    <span>BUILT HEAVY</span><span class="marquee__dot">◆</span>
-    <span>CUT CLEAN</span><span class="marquee__dot">◆</span>
-    <span>NO LOGOS LOUD</span><span class="marquee__dot">◆</span>
-    <span>ALL SUBSTANCE</span><span class="marquee__dot">◆</span>
-    <span>BUILT HEAVY</span><span class="marquee__dot">◆</span>
-    <span>CUT CLEAN</span><span class="marquee__dot">◆</span>
-    <span>NO LOGOS LOUD</span><span class="marquee__dot">◆</span>
-    <span>ALL SUBSTANCE</span><span class="marquee__dot">◆</span>
-  </div>
-</div>
-
-<!-- FABRIC MACRO -->
-<section class="macro" id="macro">
-  <video class="macro__video" autoplay muted loop playsinline preload="auto"
-    src="assets/videos/cloth-5.mp4"></video>
-  <div class="macro__overlay"></div>
-  <div class="macro__content">
-    <p class="macro__index">02 / THE MATERIAL</p>
-    <h2 class="macro__title">BUILT HEAVY.<br />CUT CLEAN.</h2>
-    <p class="macro__body">
-      480GSM brushed-back fleece. Double-needle bar-tacked stress points.
-      YKK chrome hardware. Embossed onyx crest — felt, never shouted.
-      Every seam is engineered to outlast the trend that inspired it.
-    </p>
-    <ul class="macro__specs">
-      <li><span>01</span> Heavyweight loopback cotton</li>
-      <li><span>02</span> Chrome zipper teeth, self-lubricating</li>
-      <li><span>03</span> Tonal embossed logo, no print</li>
-      <li><span>04</span> Reinforced double-stitch panels</li>
+<!-- MATERIJALI -->
+<section class="materials" id="materijali">
+  <div class="materials__glow" aria-hidden="true"></div>
+  <div class="materials__inner">
+    <div class="materials__text reveal">
+      <p class="section-head__index">02 / Materijali</p>
+      <h2 class="section-head__title">Od vlasišta do vrhova —<br /><em>samo najbolje.</em></h2>
+      <p class="materials__body">
+        Svaki model biramo prema kvaliteti, gustoći i prirodnom padu.
+        Kosa koju nosite treba izgledati, sjajiti i kretati se kao vaša —
+        zato radimo samo s materijalima kojima vjerujemo.
+      </p>
+    </div>
+    <ul class="materials__list">
+      <li class="reveal"><span>01</span>
+        <div><h4>Prirodna ljudska kosa</h4><p>Može se oblikovati, feniranjem i peglom, i njegovati kao vlastita kosa.</p></div>
+      </li>
+      <li class="reveal"><span>02</span>
+        <div><h4>Futura vlakna</h4><p>Premium vlakna otporna na toplotu — zadržavaju frizuru i sjaj.</p></div>
+      </li>
+      <li class="reveal"><span>03</span>
+        <div><h4>Proteinska vlakna</h4><p>Mekoća i prirodan sjaj koji se golim okom ne razlikuje od prave kose.</p></div>
+      </li>
+      <li class="reveal"><span>04</span>
+        <div><h4>Premium sintetika</h4><p>Postojan oblik nakon pranja — frizura koja uvijek izgleda uređeno.</p></div>
+      </li>
     </ul>
   </div>
 </section>
 
-<!-- NOTIFY -->
-<section class="notify" id="notify">
-  <div class="notify__inner">
-    <p class="notify__index">03 / SOLD OUT?</p>
-    <h2 class="notify__title">GET THE RESTOCK<br />BEFORE THE REST.</h2>
-    <p class="notify__sub">Drop your email. We ping you the second sold-out sizes land back in stock.</p>
-    <form class="notify__form" id="notifyForm">
-      <input type="email" id="notifyEmail" placeholder="you@midnight.drop" required />
-      <button type="submit">NOTIFY ME</button>
-    </form>
-    <p class="notify__msg" id="notifyMsg"></p>
+<!-- ZAŠTO EYNNA -->
+<section class="why" id="zasto">
+  <div class="section-head reveal">
+    <p class="section-head__index">03 / Zašto Eynna</p>
+    <h2 class="section-head__title">Više od kose —<br /><em>samopouzdanje.</em></h2>
+  </div>
+  <div class="why__grid">
+    <div class="why__card reveal">
+      <div class="why__icon" aria-hidden="true">✦</div>
+      <h3>Prirodan izgled</h3>
+      <p>Modeli birani da se stope s vašom kosom — niko ne mora znati, a svi će primijetiti.</p>
+    </div>
+    <div class="why__card why__card--accent reveal">
+      <div class="why__icon" aria-hidden="true">♥</div>
+      <h3>15% popusta</h3>
+      <p>Za osobe sa zdravstvenim gubitkom kose — 15% popusta na modele od prirodne ljudske kose.</p>
+    </div>
+    <div class="why__card reveal">
+      <div class="why__icon" aria-hidden="true">➤</div>
+      <h3>Dostava u BiH i regiji</h3>
+      <p>Brza i sigurna dostava širom Bosne i Hercegovine i cijele regije.</p>
+    </div>
+    <div class="why__card reveal">
+      <div class="why__icon" aria-hidden="true">✉</div>
+      <h3>Podrška pri odabiru</h3>
+      <p>Pomažemo vam pronaći pravi model, boju i dužinu — prije i poslije kupovine.</p>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE -->
+<section class="quote">
+  <blockquote class="quote__text reveal">
+    „Prvi put nakon dugo vremena, pogledala sam se u ogledalo
+    i vidjela — <em>sebe.</em>“
+  </blockquote>
+  <p class="quote__by reveal">— zadovoljna klijentica, Sarajevo</p>
+</section>
+
+<!-- KONTAKT -->
+<section class="contact" id="kontakt">
+  <div class="contact__inner reveal">
+    <p class="section-head__index">04 / Kontakt</p>
+    <h2 class="section-head__title">Niste sigurni<br /><em>šta odabrati?</em></h2>
+    <p class="contact__sub">
+      Javite nam se — pomoći ćemo vam pronaći model koji izgleda
+      kao da je oduvijek vaš.
+    </p>
+    <div class="contact__actions">
+      <a class="btn btn--gold" href="https://www.instagram.com/eynnahairekstenzije/" target="_blank" rel="noopener">Instagram</a>
+      <a class="btn btn--ghost" href="https://www.facebook.com/eynnahairekstenzije/" target="_blank" rel="noopener">Facebook</a>
+      <a class="btn btn--ghost" href="https://eynna-hair.ba/" target="_blank" rel="noopener">eynna-hair.ba</a>
+    </div>
   </div>
 </section>
 
 <!-- FOOTER -->
 <footer class="footer">
-  <div class="footer__big">ONYX SUPPLY</div>
+  <div class="footer__big" aria-hidden="true">EYNNA</div>
   <div class="footer__cols">
-    <div><h4>SHOP</h4><a href="#grid">Midnight Drop</a><a href="#grid">Hoodie</a><a href="#grid">Cargo</a><a href="#grid">Puffer</a></div>
-    <div><h4>INFO</h4><a href="#">Sizing</a><a href="#">Shipping</a><a href="#">Returns</a><a href="#">Care</a></div>
-    <div><h4>SOCIAL</h4><a href="#">Instagram</a><a href="#">TikTok</a><a href="#">Discord</a></div>
+    <div>
+      <h4>Kolekcija</h4>
+      <a href="#kolekcija">Perike</a>
+      <a href="#kolekcija">Ekstenzije</a>
+      <a href="#kolekcija">Repovi</a>
+      <a href="#kolekcija">Topperi</a>
+    </div>
+    <div>
+      <h4>Informacije</h4>
+      <a href="#materijali">Materijali</a>
+      <a href="#zasto">Zašto Eynna</a>
+      <a href="#kontakt">Kontakt</a>
+    </div>
+    <div>
+      <h4>Pratite nas</h4>
+      <a href="https://www.instagram.com/eynnahairekstenzije/" target="_blank" rel="noopener">Instagram</a>
+      <a href="https://www.facebook.com/eynnahairekstenzije/" target="_blank" rel="noopener">Facebook</a>
+      <a href="https://www.youtube.com/@EynnahairSarajevo" target="_blank" rel="noopener">YouTube</a>
+    </div>
   </div>
-  <div class="footer__legal">© 2026 ONYX SUPPLY — FICTIONAL LABEL / DEMO ONLY. NOTHING FOR SALE.</div>
+  <div class="footer__legal">© 2026 Eynna Hair — Ilidža, Sarajevo · Bosna i Hercegovina</div>
 </footer>
 
-<!-- CART DRAWER -->
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<aside class="drawer" id="drawer" aria-hidden="true">
-  <div class="drawer__head">
-    <h3>YOUR CART</h3>
-    <button class="drawer__close" id="drawerClose" aria-label="Close cart">✕</button>
-  </div>
-  <div class="drawer__items" id="drawerItems">
-    <p class="drawer__empty">Your cart is empty. Go grab the fit.</p>
-  </div>
-  <div class="drawer__foot">
-    <div class="drawer__total"><span>SUBTOTAL</span><span id="drawerTotal">$0</span></div>
-    <button class="drawer__checkout" id="checkoutBtn">DEMO CHECKOUT</button>
-    <p class="drawer__note">Demo store — no real payment is taken.</p>
-  </div>
-</aside>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
+<script src="hero-3d.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

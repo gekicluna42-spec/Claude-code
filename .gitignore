@@ -4,6 +4,16 @@ node_modules/
 # Preview screenshots
 preview-*.png
 
+# Local server / runtime artifacts
+*.pid
+.preview*.pid
+preview*.log
+*.log
+*.tsbuildinfo
+
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+
+# Build output
+dist/

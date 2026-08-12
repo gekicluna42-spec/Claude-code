@@ -1,9 +1,18 @@
+/* Smoke test for the Eynna Hair homepage.
+   Usage: start a static server on :5500, then `node verify.js`. */
 const puppeteer = require("puppeteer");
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: "new",
-    args: ["--autoplay-policy=no-user-gesture-required", "--no-sandbox"],
+    // Headless Chromium needs a software rasteriser to expose WebGL2, so the
+    // 3D hero tier is exercised here rather than silently falling back.
+    args: [
+      "--no-sandbox",
+      "--enable-unsafe-swiftshader",
+      "--use-gl=angle",
+      "--use-angle=swiftshader",
+    ],
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
@@ -16,98 +25,61 @@ const puppeteer = require("puppeteer");
 
   await page.goto("http://localhost:5500/index.html", { waitUntil: "networkidle2" });
 
-  // wait for JS-rendered cards
-  await page.waitForSelector(".card .card__video", { timeout: 10000 });
-
-  const cards = await page.$$(".card");
-  console.log(`Found ${cards.length} product cards.`);
-
   let pass = 0;
-  for (let i = 0; i < cards.length; i++) {
-    const name = await cards[i].$eval(".card__name", (el) => el.textContent.trim());
-    const media = await cards[i].$(".card__media");
+  let fail = 0;
+  const check = (name, ok) => {
+    console.log(`  [${ok ? "PASS" : "FAIL"}] ${name}`);
+    ok ? pass++ : fail++;
+  };
 
-    // scroll card into view first (extra offset so topmost card clears the fixed nav)
-    await media.evaluate((el) => {
-      el.scrollIntoView({ block: "center" });
-      // if the element top is still under the ~70px fixed nav, nudge down
-      const r = el.getBoundingClientRect();
-      if (r.top < 90) window.scrollBy(0, r.top - 100);
-    });
-    await new Promise((r) => setTimeout(r, 300));
-
-    // compute a hover point that is guaranteed inside the viewport
-    const vp = page.viewport();
-    const box = await media.boundingBox();
-    let cx = Math.round(box.x + box.width / 2);
-    let cy = Math.round(box.y + box.height / 2);
-    // clamp into visible area (accounting for the fixed nav strip)
-    cx = Math.max(4, Math.min(vp.width - 4, cx));
-    cy = Math.max(90, Math.min(vp.height - 4, cy));
-
-    const topInfo = await page.evaluate(
-      (x, y) => {
-        const el = document.elementFromPoint(x, y);
-        return {
-          isMedia: !!(el && el.closest(".card__media")),
-          tag: el ? el.tagName : "none",
-          cls: el ? el.className : "",
-        };
-      },
-      cx,
-      cy
-    );
-    console.log(`  (hover point → <${topInfo.tag} class="${topInfo.cls}"> isMedia=${topInfo.isMedia})`);
-
-
-    // hover: move away first, then into the element so mouseenter fires
-    await page.mouse.move(2, 2);
-    await new Promise((r) => setTimeout(r, 80));
-    await page.mouse.move(cx, cy, { steps: 10 });
-
-    // give the video a moment to start; retry once if needed
-    await new Promise((r) => setTimeout(r, 700));
-    let started = await cards[i].$eval(".card__video", (v) => !v.paused && v.currentTime > 0);
-    if (!started) {
-      await page.mouse.move(2, 2);
-      await new Promise((r) => setTimeout(r, 80));
-      await page.mouse.move(cx, cy, { steps: 10 });
-      await new Promise((r) => setTimeout(r, 800));
-    }
-
-
-    const state = await cards[i].$eval(".card__video", (v) => ({
-      playing: v.classList.contains("is-playing"),
-      paused: v.paused,
-      currentTime: v.currentTime,
-      readyState: v.readyState,
-    }));
-
-    const ok = state.playing && !state.paused && state.currentTime > 0;
-    console.log(
-      `  [${ok ? "PASS" : "FAIL"}] ${name} → is-playing=${state.playing} paused=${state.paused} t=${state.currentTime.toFixed(2)}s ready=${state.readyState}`
-    );
-    if (ok) pass++;
-
-    // move away -> should pause
-    await page.mouse.move(10, 10);
-    await new Promise((r) => setTimeout(r, 400));
-    const afterLeave = await cards[i].$eval(".card__video", (v) => ({
-      playing: v.classList.contains("is-playing"),
-      paused: v.paused,
-    }));
-    console.log(
-      `         leave → is-playing=${afterLeave.playing} paused=${afterLeave.paused}`
-    );
+  // 1. Key sections present
+  for (const sel of ["#top", "#kolekcija", "#materijali", "#zasto", "#kontakt", ".footer", ".marquee", ".quote"]) {
+    check(`section ${sel} exists`, (await page.$(sel)) !== null);
   }
 
-  // countdown sanity
-  const cdDays = await page.$eval("#cd-days", (el) => el.textContent);
-  console.log(`Countdown days field: ${cdDays}`);
+  // 2. Four collection cards
+  const cards = await page.$$(".ccard");
+  check("4 collection cards", cards.length === 4);
 
-  console.log("\nJS/Console errors:", errors.length ? errors : "none");
-  console.log(`\nRESULT: ${pass}/${cards.length} cards hover-to-play OK`);
+  // 3. The hero is animating — whichever tier took over
+  const tier = await page.evaluate(() => (window.__eynna3d ? "3d" : "2d"));
+  const frameCount = () =>
+    page.evaluate(() =>
+      window.__eynna3d ? window.__eynna3d.getFrames() : window.__eynna.getFrames()
+    );
+  const f1 = await frameCount();
+  await new Promise((r) => setTimeout(r, 600));
+  const f2 = await frameCount();
+  check(`hero animating via ${tier} (${f1} → ${f2} frames)`, f2 > f1);
 
+  // 4. The active canvas has a sane drawing size
+  const sel = tier === "3d" ? "#eynna-hero-gl" : "#heroCanvas";
+  const cv = await page.$eval(sel, (c) => ({ w: c.width, h: c.height }));
+  check(`${sel} sized ${cv.w}x${cv.h}`, cv.w > 0 && cv.h > 0);
+
+  // 5. Preloader dismisses
+  await page.waitForFunction(
+    () => document.getElementById("preloader").classList.contains("is-done"),
+    { timeout: 6000 }
+  );
+  check("preloader dismissed", true);
+
+  // 6. Nav gains scrolled state + reveals fire on scroll
+  await page.evaluate(() => document.getElementById("kolekcija").scrollIntoView());
+  await new Promise((r) => setTimeout(r, 900));
+  check("nav has is-scrolled after scrolling", await page.$eval("#nav", (n) => n.classList.contains("is-scrolled")));
+  const revealed = await page.$$eval("#kolekcija .reveal", (els) => els.filter((e) => e.classList.contains("is-visible")).length);
+  check(`collection reveals fired (${revealed})`, revealed > 0);
+
+  // 7. Bosnian copy sanity
+  const heroText = await page.$eval(".hero__title", (el) => el.textContent);
+  check("hero headline present", /Kosa/i.test(heroText));
+
+  // 8. No console/page errors
+  check("no JS errors", errors.length === 0);
+  if (errors.length) console.log("  errors:", errors);
+
+  console.log(`\nRESULT: ${pass} passed, ${fail} failed`);
   await browser.close();
-  process.exit(pass === cards.length && cards.length === 3 ? 0 : 1);
+  process.exit(fail === 0 ? 0 : 1);
 })();

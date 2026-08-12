@@ -1,0 +1,62 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/theme.json",
+	"version": 2,
+	"settings": {
+		"appearanceTools": true,
+		"layout": {
+			"contentSize": "1200px",
+			"wideSize": "1400px"
+		},
+		"color": {
+			"custom": true,
+			"palette": [
+				{ "slug": "ink", "color": "#0f0b09", "name": "Tamna" },
+				{ "slug": "ink-2", "color": "#17110d", "name": "Tamna 2" },
+				{ "slug": "cream", "color": "#f1eae0", "name": "Krem" },
+				{ "slug": "cream-dim", "color": "#b7ab9b", "name": "Krem prigušena" },
+				{ "slug": "gold", "color": "#d9b878", "name": "Zlatna" },
+				{ "slug": "gold-soft", "color": "#b99657", "name": "Zlatna meka" }
+			]
+		},
+		"typography": {
+			"fontFamilies": [
+				{
+					"fontFamily": "\"Playfair Display\", Georgia, serif",
+					"slug": "display",
+					"name": "Display"
+				},
+				{
+					"fontFamily": "\"Manrope\", system-ui, sans-serif",
+					"slug": "body",
+					"name": "Body"
+				}
+			],
+			"fontSizes": [
+				{ "slug": "small", "size": "0.88rem", "name": "Mala" },
+				{ "slug": "medium", "size": "1.02rem", "name": "Srednja" },
+				{ "slug": "large", "size": "1.5rem", "name": "Velika" },
+				{ "slug": "x-large", "size": "2.4rem", "name": "Vrlo velika" }
+			]
+		},
+		"spacing": {
+			"units": [ "px", "em", "rem", "vh", "vw", "%" ]
+		}
+	},
+	"styles": {
+		"color": {
+			"background": "var(--wp--preset--color--ink)",
+			"text": "var(--wp--preset--color--cream)"
+		},
+		"typography": {
+			"fontFamily": "var(--wp--preset--font-family--body)",
+			"fontSize": "1.02rem",
+			"lineHeight": "1.6"
+		},
+		"elements": {
+			"link": { "color": { "text": "var(--wp--preset--color--gold)" } },
+			"h1": { "typography": { "fontFamily": "var(--wp--preset--font-family--display)" } },
+			"h2": { "typography": { "fontFamily": "var(--wp--preset--font-family--display)" } },
+			"h3": { "typography": { "fontFamily": "var(--wp--preset--font-family--display)" } }
+		}
+	}
+}
