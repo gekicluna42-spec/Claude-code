@@ -1,0 +1,262 @@
+/* ==========================================================================
+   DIP STUDIO — the cinematic hero: one moment, five acts, scrubbed by scroll
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  /* One viewport per act plus a hold on the payoff. */
+  height: 620vh;
+}
+
+.hero__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--c-void);
+}
+
+.hero__canvas,
+.hero__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-canvas);
+}
+
+.hero__canvas { opacity: 0; transition: opacity 1.2s var(--e-out); }
+.hero__canvas.is-live { opacity: 1; }
+
+.hero__fallback {
+  object-fit: cover;
+  filter: saturate(0.95) contrast(1.05) brightness(0.86);
+  transform: scale(1.06);
+}
+
+/* Vignette + floor gradient keep type legible over any frame. */
+.hero__veil {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-canvas) + 1);
+  pointer-events: none;
+  background:
+    /* Reading scrim: the copy sits left, so the frame is held back there. */
+    linear-gradient(to right, rgba(6, 6, 7, 0.86) 0%, rgba(6, 6, 7, 0.5) 32%, rgba(6, 6, 7, 0.06) 58%, transparent 78%),
+    radial-gradient(120% 85% at 50% 42%, transparent 30%, rgba(6, 6, 7, 0.5) 78%, rgba(6, 6, 7, 0.88) 100%),
+    linear-gradient(to bottom, rgba(6, 6, 7, 0.72) 0%, transparent 30%, transparent 52%, rgba(6, 6, 7, 0.9) 100%);
+}
+
+.hero__content {
+  position: relative;
+  z-index: var(--z-heroui);
+  height: 100%;
+  display: grid;
+  align-content: end;
+  padding: 0 var(--s-gutter) clamp(4.5rem, 12vh, 8rem);
+  max-width: var(--max-w);
+  margin-inline: auto;
+}
+
+.hero__brand {
+  font-family: var(--f-sans);
+  font-size: clamp(0.75rem, 1.05vw, 0.9375rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--c-champagne);
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+  padding-left: 0.2em;
+}
+
+.hero__beats {
+  /* All beats occupy the same grid cell, so the block is as tall as the
+     longest one and a beat can never overlap the wordmark above it. */
+  display: grid;
+  align-items: end;
+}
+
+.hero__beat {
+  grid-area: 1 / 1;
+  align-self: end;
+  width: min(100%, 26ch);
+  opacity: 0;
+  transform: translate3d(0, 1.5rem, 0);
+  transition: opacity 0.7s var(--e-out), transform 0.7s var(--e-out);
+  pointer-events: none;
+}
+.hero__beat.is-active { opacity: 1; transform: none; pointer-events: auto; }
+
+.hero__beat h1,
+.hero__beat h2,
+.hero__beat p.hero__line {
+  font-family: var(--f-display);
+  font-size: clamp(1.75rem, 4.2vw, 4rem);
+  line-height: 1.08;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+.hero__beat .hero__sub {
+  margin-top: 1rem;
+  font-family: var(--f-sans);
+  font-size: var(--t-body);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--c-ivory-dim);
+  max-width: 34ch;
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: clamp(1.5rem, 4vh, 2.75rem);
+}
+
+/* ---- Act indicator ----------------------------------------------------- */
+
+.acts {
+  position: fixed;
+  right: var(--s-gutter);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-heroui);
+  display: grid;
+  gap: 0.9rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  transition: opacity var(--d-mid) var(--e-out);
+  pointer-events: none;
+}
+.acts.is-visible { opacity: 1; }
+
+.acts__item {
+  text-shadow: 0 1px 12px rgba(6, 6, 7, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: rgba(244, 239, 231, 0.35);
+  transition: color var(--d-mid) var(--e-out);
+}
+.acts__item[aria-current='true'] { color: var(--c-ivory); }
+
+.acts__num { font-variant-numeric: tabular-nums; }
+
+.acts__bar {
+  width: clamp(1.5rem, 3vw, 2.75rem);
+  height: 1px;
+  background: rgba(244, 239, 231, 0.28);
+  box-shadow: 0 0 10px rgba(6, 6, 7, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+.acts__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--c-champagne);
+  transform: scaleX(var(--act-progress, 0));
+  transform-origin: left;
+}
+
+@media (max-width: 900px) {
+  /* Phones: a shorter run through the same five acts. */
+  .hero { height: 420vh; }
+
+  .hero__veil {
+    background:
+      linear-gradient(to bottom, rgba(6, 6, 7, 0.7) 0%, transparent 30%, rgba(6, 6, 7, 0.42) 56%, rgba(6, 6, 7, 0.86) 88%),
+      radial-gradient(130% 80% at 50% 36%, transparent 40%, rgba(6, 6, 7, 0.42) 88%);
+  }
+
+  .hero__content { padding-bottom: 4.25rem; }
+  .hero__hint { display: none; }
+  .acts { right: auto; left: var(--s-gutter); top: auto; bottom: 1.25rem; transform: none; }
+  .acts__item .acts__label { display: none; }
+  .acts { grid-auto-flow: column; gap: 0.5rem; }
+}
+
+/* ---- Scroll hint ------------------------------------------------------- */
+
+.hero__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: var(--z-heroui);
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: rgba(244, 239, 231, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: opacity var(--d-mid) var(--e-out);
+}
+.hero__hint::after {
+  content: '';
+  width: 1px; height: 2.25rem;
+  background: linear-gradient(to bottom, var(--c-champagne), transparent);
+  animation: hint-drop 2.4s var(--e-inout) infinite;
+}
+.hero__hint.is-hidden { opacity: 0; }
+
+@keyframes hint-drop {
+  0%, 100% { transform: scaleY(0.3); transform-origin: top; opacity: 0.4; }
+  50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
+}
+
+/* Reduced motion: the hero becomes a still, and the five beats read as a
+   written sequence instead of a scrubbed one. */
+@media (prefers-reduced-motion: reduce) {
+  .hero { height: auto; }
+
+  .hero__stage {
+    position: relative;
+    height: auto;
+    min-height: 100svh;
+  }
+
+  .hero__content {
+    height: auto;
+    align-content: end;
+    padding-top: clamp(7rem, 18vh, 11rem);
+  }
+
+  .hero__beats {
+    display: grid;
+    gap: clamp(0.75rem, 2vh, 1.25rem);
+    align-items: start;
+    min-height: 0;
+  }
+
+  .hero__beat {
+    grid-area: auto;
+    align-self: start;
+    opacity: 1;
+    transform: none;
+    width: min(100%, 34ch);
+    pointer-events: auto;
+  }
+
+  /* The opening statement keeps the display size; the later beats become a
+     quiet list so the block stays readable without motion. */
+  .hero__beat + .hero__beat .hero__line {
+    font-size: clamp(1rem, 1.9vw, 1.4rem);
+    line-height: 1.4;
+    color: var(--c-ivory-dim);
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--c-line-soft);
+  }
+  .hero__beat + .hero__beat .hero__sub { display: none; }
+
+  .hero__hint { display: none; }
+  .acts { display: none; }
+}

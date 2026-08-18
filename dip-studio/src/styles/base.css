@@ -1,0 +1,166 @@
+/* ==========================================================================
+   DIP STUDIO — reset, base typography, shared primitives
+   ========================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: auto;
+}
+
+body {
+  background: var(--c-charcoal);
+  color: var(--c-ivory);
+  font-family: var(--f-sans);
+  font-size: var(--t-body);
+  line-height: 1.65;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Lenis owns the scroll; keep the fallback native. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+img, video, canvas, svg { display: block; max-width: 100%; }
+img, video { height: auto; }
+
+input, button, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; cursor: pointer; }
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3, h4 {
+  font-family: var(--f-display);
+  font-weight: 400;
+  /* Caps with carons (Č Ž Š) need the extra leading — 0.98 clips them. */
+  line-height: 1.08;
+  letter-spacing: var(--tracking-display);
+  text-wrap: balance;
+}
+
+p { text-wrap: pretty; }
+
+:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+::selection { background: var(--c-champagne); color: var(--c-charcoal); }
+
+/* ---- Shared primitives ------------------------------------------------- */
+
+.shell {
+  width: 100%;
+  max-width: var(--max-w);
+  margin-inline: auto;
+  padding-inline: var(--s-gutter);
+}
+
+.section { padding-block: var(--s-section); position: relative; }
+
+.rule {
+  height: 1px;
+  background: var(--c-line-soft);
+  border: 0;
+  width: 100%;
+}
+
+.eyebrow {
+  font-size: var(--t-meta);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: var(--c-champagne);
+  font-weight: 500;
+}
+
+.eyebrow--muted { color: var(--c-silver); }
+
+.lead {
+  font-size: var(--t-lead);
+  line-height: 1.55;
+  color: var(--c-ivory-dim);
+  max-width: 46ch;
+}
+
+.serif-accent { font-style: italic; color: var(--c-champagne); }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translate(-50%, -120%);
+  z-index: 200;
+  background: var(--c-ivory);
+  color: var(--c-charcoal);
+  padding: 0.75rem 1.25rem;
+  font-size: var(--t-meta);
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  transition: transform var(--d-fast) var(--e-out);
+}
+.skip-link:focus { transform: translate(-50%, 0); }
+
+/* ---- Film grain -------------------------------------------------------- */
+
+.grain {
+  position: fixed;
+  inset: -50%;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain-shift 800ms steps(4) infinite;
+  will-change: transform;
+}
+
+@keyframes grain-shift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(-2%, 1%); }
+  50%  { transform: translate(1%, -2%); }
+  75%  { transform: translate(-1%, -1%); }
+  100% { transform: translate(0, 0); }
+}
+
+/* ---- Scroll reveal ----------------------------------------------------- */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 1.75rem, 0);
+  transition:
+    opacity var(--d-slow) var(--e-out),
+    transform var(--d-slow) var(--e-out);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+[data-reveal].is-revealed { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] { opacity: 1; transform: none; }
+  .grain { animation: none; }
+}
+
+/* <picture> should not participate in layout; its <img> does. */
+picture { display: contents; }
