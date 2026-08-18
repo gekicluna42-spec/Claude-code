@@ -8,14 +8,22 @@
  *   npm run media
  */
 
-import { mkdir, access } from 'node:fs/promises';
+import { mkdir, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const mediaDir = join(root, 'public', 'media');
-const MASTER = join(root, 'media-src', 'master-hero.png');
+const sourceDir = join(root, 'media-src');
+
+/** The master frame, in whatever format it was supplied (png, jpg, avif…). */
+async function findMaster() {
+  const entries = await readdir(sourceDir);
+  const match = entries.find((name) => /^master-hero\.(png|jpe?g|webp|avif|tiff?)$/i.test(name));
+  if (!match) throw new Error(`No master-hero.* found in ${sourceDir}`);
+  return join(sourceDir, match);
+}
 
 /** Regions of the master frame, as fractions: [x, y, width, height]. */
 const CROPS = {
@@ -58,13 +66,7 @@ async function emit(input, base, widths) {
 async function main() {
   await mkdir(mediaDir, { recursive: true });
 
-  try {
-    await access(MASTER);
-  } catch {
-    console.error(`Master frame missing: ${MASTER}`);
-    process.exit(1);
-  }
-
+  const MASTER = await findMaster();
   const meta = await sharp(MASTER).metadata();
   const { width: mw = 0, height: mh = 0 } = meta;
   console.log(`master ${mw}×${mh}`);

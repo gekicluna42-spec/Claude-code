@@ -78,3 +78,15 @@ certification, an equipment specification, availability, a safety claim or a
 piece of business history that DIP Studio has not published. Service names and
 their one-line descriptions are verbatim from dipstudio.ba. Cinematic imagery
 is labelled as a render wherever it appears in a gallery context.
+
+## Shareable single-file preview
+
+```bash
+npx vite build --config vite.preview.config.ts
+node scripts/singlefile.mjs      # → preview/dip-studio-preview.html
+```
+
+Bakes the homepage into one self-contained HTML file — script, stylesheet,
+latin/latin-ext fonts and every image inlined as data URIs — for sharing where
+a static host is not available. The service pages do not exist inside a single
+file, so their links point at the on-page service catalog instead.

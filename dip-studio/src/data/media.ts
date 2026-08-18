@@ -90,6 +90,15 @@ const WIDTHS = [480, 800, 1200] as const;
 export const entry = (key: string): MediaEntry => media[key] ?? media['master'];
 
 /**
+ * Single-file builds inject `__DIP_MEDIA__`: a map of base name → data URI.
+ * When it is present every image resolves to one embedded copy instead of a
+ * responsive set, because duplicating a data URI nine times per card would
+ * dwarf the page. Normal builds never see this and keep full srcsets.
+ */
+type MediaMap = Record<string, string> | undefined;
+const embedded = (): MediaMap => (globalThis as { __DIP_MEDIA__?: Record<string, string> }).__DIP_MEDIA__;
+
+/**
  * Responsive <picture> for a manifest key: AVIF, then WebP, then JPEG.
  * Width/height are emitted so nothing shifts while the image decodes.
  */
@@ -99,18 +108,26 @@ export function imageMarkup(
 ): string {
   const item = entry(key);
   const sizes = options.sizes ?? '(max-width: 700px) 90vw, 30vw';
+  const loadingAttr = options.eager ? 'eager' : 'lazy';
+
+  const embed = embedded()?.[item.base];
+  if (embed) {
+    const w = 800;
+    return `<img src="${embed}" width="${w}" height="${Math.round(w / item.ratio)}"
+      alt="${item.alt}" class="${options.className ?? ''}" loading="${loadingAttr}" decoding="async" />`;
+  }
+
   const srcset = (ext: string): string =>
     WIDTHS.map((w) => `/media/${item.base}-${w}.${ext} ${w}w`).join(', ');
 
   const width = 800;
   const height = Math.round(width / item.ratio);
-  const loading = options.eager ? 'eager' : 'lazy';
 
   return `<picture>
     <source type="image/avif" srcset="${srcset('avif')}" sizes="${sizes}" />
     <source type="image/webp" srcset="${srcset('webp')}" sizes="${sizes}" />
     <img src="/media/${item.base}-800.jpg" srcset="${srcset('jpg')}" sizes="${sizes}"
       width="${width}" height="${height}" alt="${item.alt}"
-      class="${options.className ?? ''}" loading="${loading}" decoding="async" />
+      class="${options.className ?? ''}" loading="${loadingAttr}" decoding="async" />
   </picture>`;
 }

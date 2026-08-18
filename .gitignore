@@ -13,3 +13,5 @@ preview-*.png
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+dist-preview/
+preview/
