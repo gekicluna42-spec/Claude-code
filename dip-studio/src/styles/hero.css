@@ -1,0 +1,284 @@
+/* ==========================================================================
+   DIP STUDIO — the cinematic hero: one moment, five acts, scrubbed by scroll
+   ========================================================================== */
+
+.hero {
+  position: relative;
+  /*
+   * A long runway on purpose. The clip is ten seconds; spreading it over this
+   * much scroll means a wheel notch advances a fraction of a second of
+   * footage, which is what makes the descent read as slow cinematic motion
+   * rather than a fast-forward.
+   */
+  height: 900vh;
+}
+
+.hero__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--c-void);
+}
+
+.hero__canvas,
+.hero__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-canvas);
+}
+
+.hero__canvas { opacity: 0; transition: opacity 1.2s var(--e-out); }
+.hero__canvas.is-live { opacity: 1; }
+
+.hero__fallback {
+  object-fit: cover;
+  filter: saturate(0.95) contrast(1.05) brightness(0.86);
+  transform: scale(1.06);
+}
+
+/* Vignette + floor gradient keep type legible over any frame. */
+.hero__veil {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-canvas) + 1);
+  pointer-events: none;
+  background:
+    /* Reading scrim: the copy sits left, so the frame is held back there. */
+    linear-gradient(to right, rgba(6, 6, 7, 0.86) 0%, rgba(6, 6, 7, 0.5) 32%, rgba(6, 6, 7, 0.06) 58%, transparent 78%),
+    radial-gradient(120% 85% at 50% 42%, transparent 30%, rgba(6, 6, 7, 0.5) 78%, rgba(6, 6, 7, 0.88) 100%),
+    linear-gradient(to bottom, rgba(6, 6, 7, 0.72) 0%, transparent 30%, transparent 52%, rgba(6, 6, 7, 0.9) 100%);
+}
+
+.hero__content {
+  position: relative;
+  z-index: var(--z-heroui);
+  height: 100%;
+  display: grid;
+  align-content: end;
+  padding: 0 var(--s-gutter) clamp(4.5rem, 12vh, 8rem);
+  max-width: var(--max-w);
+  margin-inline: auto;
+}
+
+.hero__brand {
+  font-family: var(--f-sans);
+  font-size: clamp(0.75rem, 1.05vw, 0.9375rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--c-champagne);
+  margin-bottom: clamp(1.25rem, 3vh, 2rem);
+  padding-left: 0.2em;
+}
+
+.hero__reveal {
+  display: grid;
+  gap: 0;
+  opacity: 0;
+  transform: translate3d(0, 2.5rem, 0);
+  transition:
+    opacity 1.2s var(--e-out),
+    transform 1.4s var(--e-out);
+  pointer-events: none;
+}
+
+.hero__reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.hero__line {
+  font-family: var(--f-display);
+  font-size: clamp(1.75rem, 4.2vw, 4rem);
+  line-height: 1.08;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  max-width: 22ch;
+}
+
+.hero__sub {
+  margin-top: 1rem;
+  font-family: var(--f-sans);
+  font-size: var(--t-body);
+  color: var(--c-ivory-dim);
+  max-width: 34ch;
+}
+
+/* ---- Preload gate ------------------------------------------------------ */
+
+.hero__loader {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-heroui) + 1);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  background: var(--c-void);
+  transition: opacity 1s var(--e-out), visibility 1s;
+}
+
+.hero__loader.is-done {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.hero__loader-mark {
+  font-family: var(--f-sans);
+  font-size: clamp(0.75rem, 1.05vw, 0.9375rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--c-champagne);
+  padding-left: 0.42em;
+}
+
+.hero__loader-bar {
+  width: clamp(8rem, 18vw, 14rem);
+  height: 1px;
+  background: rgba(244, 239, 231, 0.16);
+  overflow: hidden;
+}
+
+.hero__loader-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--c-champagne);
+  transform: scaleX(var(--load, 0));
+  transform-origin: left;
+  transition: transform 0.4s var(--e-out);
+}
+
+/* ---- Act indicator ----------------------------------------------------- */
+
+.acts {
+  position: fixed;
+  right: var(--s-gutter);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-heroui);
+  display: grid;
+  gap: 0.9rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  transition: opacity var(--d-mid) var(--e-out);
+  pointer-events: none;
+}
+.acts.is-visible { opacity: 1; }
+/* The rail hands over to the copy at the end of the descent. */
+.acts.is-dimmed { opacity: 0.18; }
+
+.acts__item {
+  text-shadow: 0 1px 12px rgba(6, 6, 7, 0.85);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: rgba(244, 239, 231, 0.35);
+  transition: color var(--d-mid) var(--e-out);
+}
+.acts__item[aria-current='true'] { color: var(--c-ivory); }
+
+.acts__num { font-variant-numeric: tabular-nums; }
+
+.acts__bar {
+  width: clamp(1.5rem, 3vw, 2.75rem);
+  height: 1px;
+  background: rgba(244, 239, 231, 0.28);
+  box-shadow: 0 0 10px rgba(6, 6, 7, 0.7);
+  position: relative;
+  overflow: hidden;
+}
+.acts__bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--c-champagne);
+  transform: scaleX(var(--act-progress, 0));
+  transform-origin: left;
+}
+
+@media (max-width: 900px) {
+  /* Phones: a shorter run through the same five acts. */
+  .hero { height: 420vh; }
+
+  .hero__veil {
+    background:
+      linear-gradient(to bottom, rgba(6, 6, 7, 0.7) 0%, transparent 30%, rgba(6, 6, 7, 0.42) 56%, rgba(6, 6, 7, 0.86) 88%),
+      radial-gradient(130% 80% at 50% 36%, transparent 40%, rgba(6, 6, 7, 0.42) 88%);
+  }
+
+  .hero__content { padding-bottom: 4.25rem; }
+  .hero__hint { display: none; }
+  .acts { right: auto; left: var(--s-gutter); top: auto; bottom: 1.25rem; transform: none; }
+  .acts__item .acts__label { display: none; }
+  .acts { grid-auto-flow: column; gap: 0.5rem; }
+}
+
+/* ---- Scroll hint ------------------------------------------------------- */
+
+.hero__hint {
+  position: absolute;
+  left: 50%;
+  bottom: 1.5rem;
+  transform: translateX(-50%);
+  z-index: var(--z-heroui);
+  font-size: 0.6875rem;
+  letter-spacing: var(--tracking-meta);
+  text-transform: uppercase;
+  color: rgba(244, 239, 231, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: opacity var(--d-mid) var(--e-out);
+}
+.hero__hint::after {
+  content: '';
+  width: 1px; height: 2.25rem;
+  background: linear-gradient(to bottom, var(--c-champagne), transparent);
+  animation: hint-drop 2.4s var(--e-inout) infinite;
+}
+.hero__hint.is-hidden { opacity: 0; }
+
+@keyframes hint-drop {
+  0%, 100% { transform: scaleY(0.3); transform-origin: top; opacity: 0.4; }
+  50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
+}
+
+/* Reduced motion: no descent to scrub, so the hero is a still and the copy
+   is simply there — nothing to reveal, nothing to preload. */
+@media (prefers-reduced-motion: reduce) {
+  .hero { height: auto; }
+
+  .hero__stage {
+    position: relative;
+    height: auto;
+    min-height: 100svh;
+  }
+
+  .hero__content {
+    height: auto;
+    align-content: end;
+    padding-top: clamp(7rem, 18vh, 11rem);
+  }
+
+  .hero__reveal {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .hero__loader { display: none; }
+  .hero__hint { display: none; }
+  .acts { display: none; }
+}

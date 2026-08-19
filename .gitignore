@@ -1,9 +1,18 @@
 # Dependencies
 node_modules/
 
+# Build output
+dist/
+
+# QA artefacts
+qa-shots/
+
 # Preview screenshots
 preview-*.png
 
 # OS / editor cruft
 .DS_Store
 Thumbs.db
+dist-preview/
+preview/
+preview.html
