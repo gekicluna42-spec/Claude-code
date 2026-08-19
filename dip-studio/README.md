@@ -14,7 +14,7 @@ npm run frames    # frame ladders + player copies from media-src/hero-clip.mp4
 npm run media     # crops and posters from media-src/master-hero.png
 npm run dev       # http://localhost:5173
 npm run build
-npm run qa        # 58 automated checks across mobile / tablet / desktop
+npm run qa        # 60 automated checks across mobile / tablet / desktop
 ```
 
 ## What DIP Studio needs to fill in
@@ -51,12 +51,26 @@ in-page player and the poster frames.
 
 `src/hero/` then treats the footage as the subject:
 
+- The scroll never drives the image directly. ScrollTrigger writes a *target*
+  and the render loop eases toward it with frame-rate-independent damping
+  (`tau ≈ 0.07 s`, tighter on touch), so wheel notches and trackpad jitter
+  never land on the frame. Lenis runs on the GSAP ticker — one clock, ordered
+  Lenis → ScrollTrigger → render — with `lagSmoothing(0)` so a slow frame
+  cannot make GSAP skip an update.
+- Adjacent frames cross-fade rather than cut, and the blend amount follows
+  scroll speed: motion blurs, rest snaps to a whole frame and stays crisp.
+  Only genuinely adjacent frames are ever mixed — pairing distant frames while
+  the ladder is still loading produces a double image, not a blur.
+- Frames are decoded before they count as loaded, and they load coarse to fine
+  (every 8th, then 4th, 2nd, the rest), so an early fast scroll always lands
+  near a real frame and no decode ever happens on the scroll thread.
 - `timeline.ts` — the five acts, in the order the footage actually shows them:
   iščekivanje → oblak → prskalice → prvi ples → spektakl. Scene state is a
   **pure function of scroll progress**, which is why scrolling up rewinds the
   moment exactly. The procedural fog / spark / star / beam layers sit at zero
   here — the footage already contains those effects, and doubling them would
-  read as fake.
+  read as fake. `pace()` eases the frame index within each act so the moment
+  settles on its peak instead of playing at a constant rate.
 - `shaders.ts` — a virtual camera (crop, parallax, defocus), a film grade,
   bloom, vignette and grain over the footage.
 - `sources.ts` — `createFrameSequenceSource` (the default, shared between the

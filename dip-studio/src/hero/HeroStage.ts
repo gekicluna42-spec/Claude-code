@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { fragmentShader, vertexShader } from './shaders';
 import { createSparks, type Sparks } from './sparks';
 import type { HeroSource } from './sources';
-import { stateAt, type ActState } from './timeline';
+import { pace, stateAt, type ActState } from './timeline';
 
 export interface StageOptions {
   canvas: HTMLCanvasElement;
@@ -25,6 +25,12 @@ export interface StageOptions {
    * source across openings, so they pass false.
    */
   disposeSource?: boolean;
+  /**
+   * Seconds for the rendered progress to close ~63% of the gap to the scroll
+   * target. Larger glides more; ~0.07 reads as a camera move rather than a
+   * slider. Previews, which drive progress themselves, pass 0 to disable it.
+   */
+  smoothing?: number;
 }
 
 export class HeroStage {
@@ -37,7 +43,12 @@ export class HeroStage {
   private resolution = new THREE.Vector2(1, 1);
   private pointer = new THREE.Vector2(0, 0);
   private pointerTarget = new THREE.Vector2(0, 0);
+  /** Where the scroll says we are. */
+  private target = 0;
+  /** Where the render actually is — eased toward the target every frame. */
   private progress = 0;
+  /** Smoothed |dProgress/dt|, drives the velocity response. */
+  private speed = 0;
   private clock = new THREE.Clock();
   private frame = 0;
   private running = false;
@@ -64,6 +75,8 @@ export class HeroStage {
       fragmentShader,
       depthTest: false,
       depthWrite: false,
+      // Blur taps dominate the fragment cost; phones get half of them.
+      defines: { TAPS: options.quality === 'high' ? 8 : 4 },
       uniforms: {
         uTexture: { value: this.source.texture },
         uTexSize: { value: this.source.size },
@@ -116,8 +129,26 @@ export class HeroStage {
     this.resolution.set(width * this.renderer.getPixelRatio(), height * this.renderer.getPixelRatio());
   }
 
+  /** Scroll target. The render eases toward it. */
   setProgress(progress: number): void {
+    this.target = progress;
+  }
+
+  /** What the render is showing right now, behind the scroll target. */
+  get renderedProgress(): number {
+    return this.progress;
+  }
+
+  /** Where the scroll currently points. */
+  get targetProgress(): number {
+    return this.target;
+  }
+
+  /** Jump both values — first paint and ScrollTrigger refreshes. */
+  snapProgress(progress: number): void {
+    this.target = progress;
     this.progress = progress;
+    this.speed = 0;
   }
 
   start(): void {
@@ -139,11 +170,32 @@ export class HeroStage {
   };
 
   private render(): void {
-    const time = this.clock.getElapsedTime();
+    // getDelta() also advances elapsedTime, so read the delta first. The clamp
+    // guards the backgrounded-tab case without starving the glide on a slow
+    // device, where a frame can legitimately take ~100ms.
+    const dt = Math.min(this.clock.getDelta(), 0.1);
+    const time = this.clock.elapsedTime;
+
+    const tau = this.options.smoothing ?? 0;
+    if (tau > 0 && dt > 0) {
+      const previous = this.progress;
+      // Frame-rate independent: the same glide at 60 and at 120 Hz.
+      this.progress += (this.target - this.progress) * (1 - Math.exp(-dt / tau));
+
+      const instant = Math.abs(this.progress - previous) / dt;
+      // Ease the speed itself, so the grade breathes instead of flickering.
+      this.speed += (Math.min(instant / 0.7, 1) - this.speed) * (1 - Math.exp(-dt / 0.12));
+    } else {
+      this.progress = this.target;
+    }
+
     const s = this.options.stateProvider
       ? this.options.stateProvider(this.progress, time)
       : stateAt(this.progress);
     const u = this.material.uniforms;
+
+    // Movement picks up a little more light and texture; it settles back.
+    const v = this.speed;
 
     // Damp the pointer so the parallax never feels twitchy.
     this.pointer.lerp(this.pointerTarget, 0.045);
@@ -154,18 +206,28 @@ export class HeroStage {
     u.uExposure.value = s.exposure * this.exposureBoost;
     u.uContrast.value = s.contrast;
     u.uSaturation.value = s.saturation;
-    u.uVignette.value = s.vignette * (this.exposureBoost > 1 ? 0.82 : 1);
-    u.uDof.value = s.dof;
+    u.uVignette.value = (s.vignette + v * 0.08) * (this.exposureBoost > 1 ? 0.82 : 1);
+    u.uDof.value = s.dof + v * 0.05;
     u.uFog.value = s.fog;
     u.uBeams.value = s.beams;
     u.uStars.value = s.stars;
-    u.uBloom.value = s.bloom;
+    u.uBloom.value = s.bloom + v * 0.16;
+    u.uGrain.value = 0.035 + v * 0.018;
 
     this.sparks.setIntensity(s.sparks);
     this.sparks.setSpread(0.55 + s.cropW * 0.55);
     this.sparks.update(time);
 
-    this.source.update(this.progress);
+    // The frame index is paced so the moment settles on each act's peak; the
+    // acts and copy beats stay on the raw value (see hero/index.ts).
+    // Blending follows speed: blurred through the move, crisp once settled.
+    // Previews drive progress on their own clock and are always in motion, so
+    // they always blend — without it a 12 fps ladder in slow motion steps.
+    const blend = this.options.stateProvider ? 1 : Math.min(v * 4, 1);
+    this.source.update(
+      this.options.stateProvider ? this.progress : pace(this.progress),
+      blend,
+    );
     this.renderer.render(this.scene, this.camera);
   }
 

@@ -148,7 +148,9 @@ export function initEffectPreview(): void {
     loaded.stage.start();
 
     const started = performance.now();
-    const span = 5200; // one pass across the segment, in ms
+    // One pass across the segment. Kept near the footage's own pace so the
+    // preview reads as slow motion rather than a slideshow.
+    const span = 3200;
 
     const tick = (now: number): void => {
       const cycle = ((now - started) % (span * 2)) / span;

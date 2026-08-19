@@ -318,6 +318,90 @@ async function main() {
       await page.close();
     }
 
+    // ---- scroll smoothness ----
+    {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1440, height: 900 });
+      await page.goto(`${BASE}/?qa=1`, { waitUntil: 'networkidle2' });
+      await sleep(3500);
+
+      // Frame pacing across a scripted scroll through the hero. Rendering here
+      // is SwiftShader on a shared CPU, so the bar is "no stalls", not 60fps.
+      const timing = await page.evaluate(async () => {
+        const deltas = [];
+        let last = performance.now();
+        let handle = 0;
+        const tick = (t) => {
+          deltas.push(t - last);
+          last = t;
+          handle = requestAnimationFrame(tick);
+        };
+        handle = requestAnimationFrame(tick);
+
+        const hero = document.querySelector('#hero');
+        const total = hero.offsetHeight - window.innerHeight;
+        for (let i = 0; i <= 60; i++) {
+          window.scrollTo(0, Math.round((total * i) / 60));
+          await new Promise((r) => setTimeout(r, 33));
+        }
+        cancelAnimationFrame(handle);
+
+        const sorted = deltas.slice(2).sort((a, b) => a - b);
+        return {
+          frames: sorted.length,
+          p95: Math.round(sorted[Math.floor(sorted.length * 0.95)] ?? 0),
+          max: Math.round(sorted[sorted.length - 1] ?? 0),
+        };
+      });
+      // Software rendering here is 10-50x slower than any real GPU, so this
+      // asserts the loop keeps running rather than a frame rate.
+      record(
+        '[scroll] render loop keeps up while scrubbing',
+        timing.frames > 0 && timing.max < 1500,
+        `p95 ${timing.p95}ms, max ${timing.max}ms over ${timing.frames} frames (software rendering)`,
+      );
+
+      // The glide must settle, not drift: after a jump the rendered progress
+      // has to converge on the target quickly.
+      const glide = await page.evaluate(async () => {
+        const hero = document.querySelector('#hero');
+        const api = window.__DIP_HERO__;
+        if (!api) return { available: false };
+
+        const total = hero.offsetHeight - window.innerHeight;
+        window.scrollTo(0, 0);
+        await new Promise((r) => setTimeout(r, 600));
+
+        window.scrollTo(0, Math.round(total * 0.6));
+        const started = performance.now();
+        let lagged = false;
+        let settledAt = -1;
+
+        while (performance.now() - started < 3000) {
+          const gap = Math.abs(api.target() - api.rendered());
+          if (gap > 0.02) lagged = true;
+          if (lagged && gap < 0.005) {
+            settledAt = performance.now() - started;
+            break;
+          }
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+        return { available: true, lagged, settledAt: Math.round(settledAt) };
+      });
+      // The glide needs a handful of frames to converge, so the budget scales
+      // with how slow this machine's frames actually are.
+      const budget = Math.max(500, timing.p95 * 6);
+      record(
+        '[scroll] damped scrub glides and then settles',
+        glide.available && glide.lagged && glide.settledAt > 0 && glide.settledAt < budget,
+        glide.available
+          ? `settled in ${glide.settledAt}ms (budget ${Math.round(budget)}ms)`
+          : 'hook unavailable',
+      );
+
+      await page.close();
+    }
+
     // ---- reduced motion ----
     {
       const page = await browser.newPage();

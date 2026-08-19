@@ -50,19 +50,28 @@ function boot(): void {
   if (prefersReducedMotion()) return;
 
   void (async () => {
-    const [{ default: Lenis }, { mountHero }] = await Promise.all([
+    const [{ default: Lenis }, { mountHero }, { default: gsap }] = await Promise.all([
       import('lenis'),
       import('./hero'),
+      import('gsap'),
     ]);
 
-    const lenis = new Lenis({ duration: 1.05, smoothWheel: true });
-    const raf = (time: number): void => {
-      lenis.raf(time);
-      requestAnimationFrame(raf);
-    };
-    requestAnimationFrame(raf);
+    const lenis = new Lenis({
+      // lerp is frame-rate independent in Lenis 1.3; lower glides longer.
+      lerp: 0.085,
+      smoothWheel: true,
+      wheelMultiplier: 0.9,
+      syncTouch: true,
+    });
 
     const { ScrollTrigger } = await import('gsap/ScrollTrigger');
+
+    // One clock: Lenis, then ScrollTrigger, then the render loop. A second
+    // requestAnimationFrame here would reorder them unpredictably.
+    gsap.ticker.add((time) => lenis.raf(time * 1000));
+    // GSAP otherwise swallows updates after a slow frame, which shows up as a
+    // jump in a scrubbed sequence.
+    gsap.ticker.lagSmoothing(0);
     lenis.on('scroll', ScrollTrigger.update);
 
     await mountHero({

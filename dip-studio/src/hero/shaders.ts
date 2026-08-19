@@ -94,12 +94,18 @@ export const fragmentShader = /* glsl */ `
     return texture2D(uTexture, clamp(uv, vec2(0.001), vec2(0.999))).rgb;
   }
 
-  // Radial blur used for both defocus and the bloom pre-pass.
+  // Radial blur used for both defocus and the bloom pre-pass. TAPS is defined
+  // per device tier by HeroStage.
+  #ifndef TAPS
+  #define TAPS 8
+  #endif
+
   vec3 blurred(vec2 uv, float radius) {
     vec3 sum = vec3(0.0);
     float total = 0.0;
-    for (int i = 0; i < 8; i++) {
-      float a = float(i) * 0.7853981634;
+    const float step = 6.2831853 / float(TAPS);
+    for (int i = 0; i < TAPS; i++) {
+      float a = float(i) * step;
       vec2 o = vec2(cos(a), sin(a)) * radius;
       float w = 1.0 - float(i) * 0.04;
       sum += sampleFrame(uv + o) * w;

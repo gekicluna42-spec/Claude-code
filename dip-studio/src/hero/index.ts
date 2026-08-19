@@ -72,7 +72,13 @@ export async function mountHero(config: HeroConfig): Promise<void> {
     }
   }
 
-  const stage = new HeroStage({ canvas, source, quality });
+  const stage = new HeroStage({
+    canvas,
+    source,
+    quality,
+    // Touch reads lag more harshly than a wheel does, so phones glide less.
+    smoothing: quality === 'low' ? 0.05 : 0.07,
+  });
   canvas.classList.add('is-live');
 
   // Render — and show the act rail — only while the hero is on screen.
@@ -88,8 +94,9 @@ export async function mountHero(config: HeroConfig): Promise<void> {
 
   let activeBeat = -1;
 
-  const applyProgress = (p: number): void => {
-    stage.setProgress(p);
+  const applyProgress = (p: number, snap = false): void => {
+    if (snap) stage.snapProgress(p);
+    else stage.setProgress(p);
 
     const { index, local } = actProgress(p);
 
@@ -114,8 +121,18 @@ export async function mountHero(config: HeroConfig): Promise<void> {
     end: 'bottom bottom',
     scrub: true,
     onUpdate: (self) => applyProgress(self.progress),
-    onRefresh: (self) => applyProgress(self.progress),
+    // A refresh is a jump, not a move: land on it rather than gliding there.
+    onRefresh: (self) => applyProgress(self.progress, true),
   });
 
-  applyProgress(0);
+  applyProgress(0, true);
+
+  // Measurement hook for scripts/qa.mjs — only when explicitly asked for, so
+  // nothing is exposed on the live site.
+  if (new URLSearchParams(window.location.search).has('qa')) {
+    (window as unknown as { __DIP_HERO__?: unknown }).__DIP_HERO__ = {
+      rendered: () => stage.renderedProgress,
+      target: () => stage.targetProgress,
+    };
+  }
 }

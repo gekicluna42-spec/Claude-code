@@ -169,3 +169,34 @@ export function actProgress(progress: number): { index: number; local: number } 
   const local = end > start ? (p - start) / (end - start) : 1;
   return { index, local: Math.min(1, Math.max(0, local)) };
 }
+
+/**
+ * Paces the footage against the scroll.
+ *
+ * Linear scrubbing plays the clip at a constant rate, which reads as
+ * playback. Easing within each act instead makes the moment settle on that
+ * act's peak — the fog spreading, the fountains at full — and move quicker
+ * through the transitions between them. Edited, rather than played.
+ *
+ * Applied to the frame index only. The acts, copy beats and indicator stay on
+ * the raw progress so the narrative still tracks the scrollbar.
+ */
+export function pace(progress: number): number {
+  const p = Math.min(1, Math.max(0, progress));
+
+  for (let i = 0; i < acts.length - 1; i++) {
+    const start = acts[i].at;
+    const end = acts[i + 1].at;
+    if (p < start || p > end) continue;
+
+    const span = end - start;
+    if (span <= 0) return p;
+
+    const t = (p - start) / span;
+    // Gentle: a full smoothstep over-holds and reads as sticking.
+    const eased = t + (ease(t) - t) * 0.55;
+    return start + eased * span;
+  }
+
+  return p;
+}

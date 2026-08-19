@@ -11,8 +11,12 @@ import * as THREE from 'three';
 export interface HeroSource {
   readonly texture: THREE.Texture;
   readonly size: THREE.Vector2;
-  /** Called every frame with 0–1 progress; image sources ignore it. */
-  update(progress: number): void;
+  /**
+   * Called every frame with 0–1 progress; image sources ignore it.
+   * `blend` (0–1) is how much cross-fade to apply between adjacent frames:
+   * the stage feeds it scroll speed, so motion blurs and rest stays crisp.
+   */
+  update(progress: number, blend?: number): void;
   dispose(): void;
 }
 
@@ -160,7 +164,11 @@ async function buildFrameSequenceSource(
   const ext = (await supportsAvif()) ? 'avif' : 'webp';
   const [small, large] = manifest.ladders;
 
-  const width = large?.width ?? 1280;
+  // Phones and low-core machines draw into a smaller canvas: every scrubbed
+  // frame is a texture upload, and upload cost scales with pixels.
+  const lowTier =
+    window.matchMedia('(max-width: 900px)').matches || navigator.hardwareConcurrency <= 4;
+  const width = Math.min(large?.width ?? 1280, lowTier ? 960 : 1600);
   const height = Math.round(width / manifest.aspect);
 
   const canvas = document.createElement('canvas');
@@ -174,12 +182,16 @@ async function buildFrameSequenceSource(
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
 
-  /** Best image available per frame index; upgraded in place by the loader. */
+  type Tier = 'sm' | 'lg';
+
   const frames: (HTMLImageElement | undefined)[] = new Array(manifest.count);
-  const quality: ('sm' | 'lg')[] = new Array(manifest.count).fill('sm');
-  let drawn = -1;
-  let drawnQuality: 'sm' | 'lg' | null = null;
+  const tiers: (Tier | undefined)[] = new Array(manifest.count);
   let ready = 0;
+
+  /** Fractional index last drawn, so tiny moves skip the redraw entirely. */
+  let lastExact = -1;
+  let lastTier: Tier | undefined;
+  let lastBlend = -1;
 
   const frameUrl = (dir: string, index: number): string =>
     `${base}${dir}/${String(index).padStart(4, '0')}.${ext}`;
@@ -188,29 +200,43 @@ async function buildFrameSequenceSource(
     new Promise((resolve, reject) => {
       const img = new Image();
       img.decoding = 'async';
-      img.onload = () => resolve(img);
+      img.onload = () => {
+        // Decode here, not on the first draw — a decode on the scroll thread
+        // is exactly the stall this whole approach exists to avoid.
+        img
+          .decode()
+          .catch(() => undefined)
+          .then(() => resolve(img));
+      };
       img.onerror = () => reject(new Error(`Frame failed: ${url}`));
       img.src = url;
     });
 
-  // The first frame is needed before anything can render.
   frames[0] = await load(frameUrl(small?.dir ?? 'sm', 0));
+  tiers[0] = 'sm';
   ready = 1;
 
-  const loadLadder = async (dir: string, tier: 'sm' | 'lg'): Promise<void> => {
-    // Sequential on purpose: the browser keeps the connection warm and the
-    // scroll thread stays free.
-    for (let i = 0; i < manifest.count; i++) {
-      if (quality[i] === 'lg' && tier === 'sm') continue;
-      try {
-        const img = await load(frameUrl(dir, i));
-        frames[i] = img;
-        quality[i] = tier;
-        if (tier === 'sm') onProgress?.(++ready, manifest.count);
-        // Redraw if the visible frame just improved.
-        if (i === drawn && tier !== drawnQuality) drawn = -1;
-      } catch {
-        /* A missing frame falls back to the nearest one already loaded. */
+  /**
+   * Coarse to fine: every 8th frame, then 4th, 2nd, then the rest. The whole
+   * timeline is covered within about fifteen images, so an early fast scroll
+   * always lands near a real frame instead of reaching for a distant one.
+   */
+  const STRIDES = [8, 4, 2, 1];
+
+  const loadLadder = async (dir: string, tier: Tier): Promise<void> => {
+    for (const stride of STRIDES) {
+      for (let i = 0; i < manifest.count; i += stride) {
+        if (tiers[i] === tier || (tier === 'sm' && tiers[i] === 'lg')) continue;
+        try {
+          const img = await load(frameUrl(dir, i));
+          frames[i] = img;
+          tiers[i] = tier;
+          if (tier === 'sm') onProgress?.(++ready, manifest.count);
+          // Force a redraw when the frame on screen just improved.
+          if (Math.round(lastExact) === i) lastExact = -1;
+        } catch {
+          /* A missing frame falls back to the nearest one already loaded. */
+        }
       }
     }
   };
@@ -232,21 +258,48 @@ async function buildFrameSequenceSource(
   return {
     texture,
     size: new THREE.Vector2(width, height),
-    update(progress: number) {
-      const index = Math.min(
-        manifest.count - 1,
-        Math.max(0, Math.round(progress * (manifest.count - 1))),
-      );
-      if (index === drawn && quality[index] === drawnQuality) return;
 
-      const img = frames[index] ?? nearest(index);
-      if (!img || !ctx) return;
+    update(progress: number, blend = 1) {
+      if (!ctx) return;
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const last = manifest.count - 1;
+      const exact = Math.min(last, Math.max(0, progress * last));
+      const index = Math.floor(exact);
+      const rawFrac = exact - index;
+
+      // At rest the fraction rounds to a whole frame, so a settled hero is
+      // crisp; while scrolling it keeps its true value and the cross-fade
+      // reads as motion blur.
+      const frac = blend * rawFrac + (1 - blend) * Math.round(rawFrac);
+
+      const tier = tiers[index];
+      if (Math.abs(exact - lastExact) < 0.01 && tier === lastTier && blend === lastBlend) return;
+
+      const current = frames[index];
+      const next = frames[index + 1];
+
+      // Only genuinely adjacent frames may be blended. Mixing a loaded frame
+      // with one several steps away — which happens while the ladder is still
+      // filling in — produces a double image, not a blur.
+      const canBlend = Boolean(current && next) && frac > 0.01 && frac < 0.99;
+      const base = current ?? nearest(index);
+      if (!base) return;
+
+      ctx.globalAlpha = 1;
+      ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+
+      if (canBlend && next) {
+        ctx.globalAlpha = frac;
+        ctx.drawImage(next, 0, 0, canvas.width, canvas.height);
+        ctx.globalAlpha = 1;
+      }
+
       texture.needsUpdate = true;
-      drawn = index;
-      drawnQuality = quality[index];
+      lastExact = exact;
+      lastTier = tier;
+      lastBlend = blend;
     },
+
     dispose() {
       texture.dispose();
       frames.length = 0;
