@@ -25,6 +25,7 @@ import { initCompare } from './sections/compare';
 import { initGallery } from './sections/gallery';
 import { initSocial } from './sections/social';
 import { initAbout } from './sections/about';
+import { initEffectPreview } from './sections/effect-preview';
 import { initBooking } from './booking/booking';
 
 function boot(): void {
@@ -36,6 +37,10 @@ function boot(): void {
   initBuilder();
   initGallery();
   initSocial();
+
+  // After the sections (it binds their preview buttons) and before booking
+  // (its panel contributes a booking trigger).
+  initEffectPreview();
 
   initNav();
   initCompare();
@@ -60,7 +65,10 @@ function boot(): void {
     const { ScrollTrigger } = await import('gsap/ScrollTrigger');
     lenis.on('scroll', ScrollTrigger.update);
 
-    await mountHero({ imageUrl: '/media/hero-master-2200.jpg' });
+    await mountHero({
+      framesUrl: '/media/frames/frames.json',
+      imageUrl: '/media/clip-poster.jpg',
+    });
     ScrollTrigger.refresh();
   })();
 }

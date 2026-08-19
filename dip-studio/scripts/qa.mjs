@@ -157,6 +157,16 @@ async function main() {
       }
       await page.screenshot({ path: join(shots, `${vp.name}-02-spectacle.png`) });
 
+      const frames = await page.evaluate(() => ({
+        manifest: Boolean(window.performance.getEntriesByType('resource').find((r) => r.name.includes('frames.json'))),
+        loaded: window.performance.getEntriesByType('resource').filter((r) => r.name.includes('/media/frames/')).length,
+      }));
+      record(
+        `[${vp.name}] hero loads the frame sequence`,
+        frames.manifest && frames.loaded > 10,
+        `${frames.loaded} frame requests`,
+      );
+
       const order = seen.map((s) => s.current);
       const ascending = order.every((v, i) => i === 0 || v >= order[i - 1]);
       record(
@@ -190,6 +200,79 @@ async function main() {
       await sleep(200);
       const summary = await page.$eval('[data-summary="moment"]', (el) => el.textContent?.trim());
       record(`[${vp.name}] builder updates the summary`, Boolean(summary) && summary !== 'Još niste odabrali', summary);
+
+      // ---- effect preview ----
+      const livePreview = await page.evaluate(async () => {
+        document.querySelector('#tab-prvi-ples')?.click();
+        await new Promise((r) => setTimeout(r, 400));
+        const card = document.querySelector('[data-effect-preview="niski-dim"]');
+        const id = card?.dataset.effectPreview;
+        card?.click();
+        await new Promise((r) => setTimeout(r, 2600));
+        const root = document.querySelector('#effect-preview');
+        const canvas = document.querySelector('#preview-canvas');
+        return {
+          id,
+          open: Boolean(root) && !root.hidden,
+          canvasShown: Boolean(canvas) && !canvas.hidden,
+          title: document.querySelector('#effect-preview-title')?.textContent ?? '',
+          note: document.querySelector('#preview-note')?.textContent ?? '',
+        };
+      });
+      record(
+        `[${vp.name}] effect preview plays the footage for a depictable effect`,
+        livePreview.open && livePreview.canvasShown && livePreview.note.includes('Kinematografski prikaz'),
+        `${livePreview.id}: ${livePreview.title}`,
+      );
+      await page.screenshot({ path: join(shots, `${vp.name}-05-preview.png`) });
+
+      await page.keyboard.press('Escape');
+      await sleep(500);
+      const previewClosed = await page.evaluate(() => document.querySelector('#effect-preview').hidden);
+      record(`[${vp.name}] Escape closes the effect preview`, previewClosed);
+
+      // A service the footage does not show must get a still, never fake motion.
+      const stillPreview = await page.evaluate(async () => {
+        document.querySelector('#tab-uspomena')?.click();
+        await new Promise((r) => setTimeout(r, 400));
+        const card = document.querySelector('[data-effect-preview="audioguestbook"]');
+        const id = card?.dataset.effectPreview;
+        card?.click();
+        await new Promise((r) => setTimeout(r, 1200));
+        return {
+          id,
+          canvasShown: !document.querySelector('#preview-canvas').hidden,
+          stillShown: !document.querySelector('#preview-still').hidden,
+        };
+      });
+      record(
+        `[${vp.name}] non-depictable service shows a still, not invented motion`,
+        !stillPreview.canvasShown && stillPreview.stillShown,
+        stillPreview.id,
+      );
+      await page.keyboard.press('Escape');
+      await sleep(500);
+
+      // ---- the full clip player is lazy ----
+      const clip = await page.evaluate(async () => {
+        document.querySelector('[data-play-clip]')?.click();
+        await new Promise((r) => setTimeout(r, 900));
+        const video = document.querySelector('#preview-video');
+        return {
+          shown: Boolean(video) && !video.hidden,
+          preload: video?.getAttribute('preload'),
+          poster: Boolean(video?.getAttribute('poster')),
+          sources: video?.querySelectorAll('source').length ?? 0,
+          muted: video?.muted === true,
+        };
+      });
+      record(
+        `[${vp.name}] clip player opens, lazy and muted`,
+        clip.shown && clip.preload === 'none' && clip.poster && clip.sources === 1 && clip.muted,
+        `preload=${clip.preload} sources=${clip.sources}`,
+      );
+      await page.keyboard.press('Escape');
+      await sleep(500);
 
       // ---- booking modal ----
       await page.evaluate(() => document.querySelector('[data-open-booking]')?.click());

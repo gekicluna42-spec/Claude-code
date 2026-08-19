@@ -1,19 +1,29 @@
 /**
  * The five acts of one wedding moment.
  *
- * Everything the hero renders is a pure function of scroll progress (0 → 1).
- * Nothing accumulates, which is why scrolling back up rewinds the moment
- * exactly instead of drifting.
+ * The hero now scrubs real footage (media-src/hero-clip.mp4), so these acts
+ * are the narrative overlay on top of it: each one names a beat of the clip
+ * and sets how the virtual camera and the grade treat that stretch.
  *
- * The camera never cuts: it starts tight and dark on the couple and pulls
- * back continuously until the whole production is in frame.
+ * Act order follows what the footage actually shows — fog and the star
+ * ceiling first, fountains igniting, the couple in the corridor, then the
+ * full production with lasers — rather than an order the clip does not have.
+ *
+ * The procedural fog / spark / star / beam layers stay at zero here: the
+ * footage already contains those effects and doubling them would read as
+ * fake. They remain available for the effect previews, which run the same
+ * shader over single frames.
+ *
+ * Everything the hero renders is a pure function of scroll progress (0 → 1),
+ * which is why scrolling back up rewinds the moment exactly.
  */
 
 export interface ActState {
   /**
    * Normalised crop of the source frame: centre x/y and width (0–1).
-   * cropY is measured from the BOTTOM of the frame (texture UV origin), so
-   * larger values look further up the room and smaller ones drop to the floor.
+   * cropY is measured from the BOTTOM of the frame (texture UV origin).
+   * Values stay near 1 because the clip is already composed and moving —
+   * the camera here only adds a slow push and a little parallax.
    */
   cropX: number;
   cropY: number;
@@ -26,7 +36,7 @@ export interface ActState {
   vignette: number;
   /** Defocus applied to everything but the centre of frame. */
   dof: number;
-  /** Effect layers — these map 1:1 to real DIP Studio services. */
+  /** Effect layers — kept at 0 for footage; used by the effect previews. */
   fog: number;
   sparks: number;
   beams: number;
@@ -47,56 +57,56 @@ export const acts: readonly Act[] = [
   {
     id: 'anticipation',
     index: 1,
-    label: 'Anticipation',
+    label: 'Iščekivanje',
     at: 0,
     state: {
-      cropX: 0.5, cropY: 0.6, cropW: 0.42, yaw: -0.012,
-      exposure: 0.6, contrast: 1.12, saturation: 0.74, vignette: 1.0, dof: 0.55,
-      fog: 0.0, sparks: 0.0, beams: 0.0, stars: 0.0, bloom: 0.12,
-    },
-  },
-  {
-    id: 'first-dance',
-    index: 2,
-    label: 'Prvi ples',
-    at: 0.2,
-    state: {
-      cropX: 0.5, cropY: 0.56, cropW: 0.52, yaw: 0.014,
-      exposure: 0.8, contrast: 1.09, saturation: 0.88, vignette: 0.84, dof: 0.34,
-      fog: 0.06, sparks: 0.0, beams: 0.1, stars: 0.0, bloom: 0.22,
+      cropX: 0.5, cropY: 0.5, cropW: 0.9, yaw: -0.006,
+      exposure: 0.72, contrast: 1.12, saturation: 0.82, vignette: 0.92, dof: 0.24,
+      fog: 0, sparks: 0, beams: 0, stars: 0, bloom: 0.14,
     },
   },
   {
     id: 'cloud',
-    index: 3,
+    index: 2,
     label: 'Oblak',
-    at: 0.42,
+    at: 0.16,
     state: {
-      cropX: 0.5, cropY: 0.44, cropW: 0.64, yaw: -0.008,
-      exposure: 0.88, contrast: 1.06, saturation: 0.92, vignette: 0.7, dof: 0.28,
-      fog: 1.0, sparks: 0.0, beams: 0.22, stars: 0.05, bloom: 0.34,
+      cropX: 0.5, cropY: 0.5, cropW: 0.94, yaw: 0.005,
+      exposure: 0.86, contrast: 1.09, saturation: 0.9, vignette: 0.8, dof: 0.14,
+      fog: 0, sparks: 0, beams: 0, stars: 0, bloom: 0.2,
     },
   },
   {
     id: 'spark',
-    index: 4,
+    index: 3,
     label: 'Prskalice',
-    at: 0.64,
+    at: 0.34,
     state: {
-      cropX: 0.5, cropY: 0.48, cropW: 0.82, yaw: 0.01,
-      exposure: 1.0, contrast: 1.04, saturation: 1.0, vignette: 0.55, dof: 0.12,
-      fog: 0.82, sparks: 1.0, beams: 0.45, stars: 0.35, bloom: 0.55,
+      cropX: 0.5, cropY: 0.5, cropW: 0.97, yaw: -0.004,
+      exposure: 0.97, contrast: 1.06, saturation: 0.97, vignette: 0.66, dof: 0.06,
+      fog: 0, sparks: 0, beams: 0, stars: 0, bloom: 0.32,
+    },
+  },
+  {
+    id: 'first-dance',
+    index: 4,
+    label: 'Prvi ples',
+    at: 0.58,
+    state: {
+      cropX: 0.5, cropY: 0.5, cropW: 0.99, yaw: 0.004,
+      exposure: 1.0, contrast: 1.04, saturation: 1.0, vignette: 0.56, dof: 0.02,
+      fog: 0, sparks: 0, beams: 0, stars: 0, bloom: 0.38,
     },
   },
   {
     id: 'spectacle',
     index: 5,
     label: 'Spektakl',
-    at: 0.84,
+    at: 0.82,
     state: {
       cropX: 0.5, cropY: 0.5, cropW: 1.0, yaw: 0,
-      exposure: 1.06, contrast: 1.02, saturation: 1.04, vignette: 0.42, dof: 0.0,
-      fog: 0.7, sparks: 0.85, beams: 0.9, stars: 1.0, bloom: 0.8,
+      exposure: 1.05, contrast: 1.02, saturation: 1.04, vignette: 0.46, dof: 0,
+      fog: 0, sparks: 0, beams: 0, stars: 0, bloom: 0.46,
     },
   },
 ];

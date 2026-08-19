@@ -8,13 +8,23 @@ import * as THREE from 'three';
 import { fragmentShader, vertexShader } from './shaders';
 import { createSparks, type Sparks } from './sparks';
 import type { HeroSource } from './sources';
-import { stateAt } from './timeline';
+import { stateAt, type ActState } from './timeline';
 
 export interface StageOptions {
   canvas: HTMLCanvasElement;
   source: HeroSource;
   /** Lower tier = fewer particles and a tighter pixel-ratio cap. */
   quality: 'high' | 'low';
+  /**
+   * Overrides the act timeline. The hero leaves this unset; the effect
+   * previews use it to hold one effect and animate it on their own clock.
+   */
+  stateProvider?: (progress: number, time: number) => ActState;
+  /**
+   * Whether dispose() also disposes the source. Previews reuse one cached
+   * source across openings, so they pass false.
+   */
+  disposeSource?: boolean;
 }
 
 export class HeroStage {
@@ -130,7 +140,9 @@ export class HeroStage {
 
   private render(): void {
     const time = this.clock.getElapsedTime();
-    const s = stateAt(this.progress);
+    const s = this.options.stateProvider
+      ? this.options.stateProvider(this.progress, time)
+      : stateAt(this.progress);
     const u = this.material.uniforms;
 
     // Damp the pointer so the parallax never feels twitchy.
@@ -163,7 +175,7 @@ export class HeroStage {
     window.removeEventListener('pointermove', this.onPointerMove);
     this.sparks.dispose();
     this.material.dispose();
-    this.source.dispose();
+    if (this.options.disposeSource !== false) this.source.dispose();
     this.renderer.dispose();
   }
 }

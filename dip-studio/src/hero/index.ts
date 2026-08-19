@@ -8,19 +8,25 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { HeroStage } from './HeroStage';
-import { createImageSource, createVideoSource, type HeroSource } from './sources';
+import {
+  createFrameSequenceSource,
+  createImageSource,
+  createVideoSource,
+  type HeroSource,
+} from './sources';
 import { acts, actProgress } from './timeline';
 
 gsap.registerPlugin(ScrollTrigger);
 
 export interface HeroConfig {
-  /** Master frame used to render the sequence. */
+  /** Still used when nothing better loads — also the DOM fallback image. */
   imageUrl: string;
   /**
-   * Optional cinematic clip. When present it takes over as the frame source
-   * and is scrubbed instead of the still — this is the drop-in point for
-   * DIP Studio's generated sequence.
+   * Frame-sequence manifest. This is the default: scrubbing decoded frames
+   * is smooth everywhere, where seeking a video under scroll is not.
    */
+  framesUrl?: string;
+  /** A video to scrub instead. Used by the single-file preview build. */
   videoUrl?: string;
 }
 
@@ -53,12 +59,17 @@ export async function mountHero(config: HeroConfig): Promise<void> {
 
   let source: HeroSource;
   try {
-    source = config.videoUrl
-      ? await createVideoSource(config.videoUrl)
-      : await createImageSource(config.imageUrl);
+    if (config.videoUrl) source = await createVideoSource(config.videoUrl);
+    else if (config.framesUrl) source = await createFrameSequenceSource(config.framesUrl);
+    else source = await createImageSource(config.imageUrl);
   } catch {
-    // A missing frame must never take the page down — keep the static hero.
-    return;
+    // Losing the sequence must never take the page down: fall back to the
+    // still, and if even that fails, leave the DOM hero image in place.
+    try {
+      source = await createImageSource(config.imageUrl);
+    } catch {
+      return;
+    }
   }
 
   const stage = new HeroStage({ canvas, source, quality });

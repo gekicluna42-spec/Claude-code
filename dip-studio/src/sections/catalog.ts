@@ -33,7 +33,8 @@ export function initCatalog(): void {
                   <p class="lead">${esc(service.tagline)}</p>
                   <p>${esc(service.editorial)}</p>
                   <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-                    <button class="btn" data-open-booking data-service="${esc(service.id)}">Zatraži ponudu</button>
+                    <button class="btn" data-effect-preview="${esc(service.id)}">Pogledaj efekat</button>
+                    <button class="btn btn--ghost" data-open-booking data-service="${esc(service.id)}">Zatraži ponudu</button>
                     ${service.page ? `<a class="btn btn--ghost" href="${service.page}">Više o usluzi</a>` : ''}
                   </div>
                 </div>

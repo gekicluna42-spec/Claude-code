@@ -8,11 +8,9 @@
 
 import { services } from '../data/services';
 import { site, has } from '../data/site.config';
-import { esc, qs, qsa } from '../lib/dom';
+import { esc, qs } from '../lib/dom';
+import { createModal } from '../lib/modal';
 import { getSelection } from '../sections/builder';
-
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 interface FieldRule {
   id: string;
@@ -96,14 +94,13 @@ function mailtoHref(payload: Record<string, string>): string {
 }
 
 export function initBooking(): void {
-  const modal = qs('#booking');
-  const panel = qs('.modal__panel', modal ?? document);
+  const modalRoot = qs('#booking');
   const form = qs<HTMLFormElement>('#booking-form');
   const status = qs('#booking-status');
   const note = qs('#booking-note');
   const select = qs<HTMLSelectElement>('#bf-service');
   const submit = qs<HTMLButtonElement>('#booking-submit');
-  if (!modal || !panel || !form || !status || !note || !select || !submit) return;
+  if (!modalRoot || !form || !status || !note || !select || !submit) return;
 
   select.insertAdjacentHTML(
     'beforeend',
@@ -114,75 +111,44 @@ export function initBooking(): void {
     ? 'Upit ne rezerviše termin automatski — javljamo se s potvrdom.'
     : '';
 
-  let lastFocused: HTMLElement | null = null;
+  const modal = createModal(modalRoot, {
+    closeSelector: '[data-close-booking]',
+    onOpened: () => modal.focusFirst(qs<HTMLInputElement>('#bf-name', form)),
+  });
 
-  const open = (trigger?: HTMLElement): void => {
-    lastFocused = (trigger ?? document.activeElement) as HTMLElement;
-    modal.hidden = false;
-    document.documentElement.classList.add('lenis-stopped');
-    requestAnimationFrame(() => {
-      modal.classList.add('is-open');
-      requestAnimationFrame(() => qs<HTMLInputElement>('#bf-name', form)?.focus());
-    });
-
+  const prefill = (trigger?: HTMLElement): void => {
     const serviceId = trigger?.dataset.service;
     if (serviceId) {
       const service = services.find((s) => s.id === serviceId);
       if (service) select.value = service.name;
     }
 
-    if (trigger?.hasAttribute('data-from-builder')) {
-      const selection = getSelection();
-      if (selection.effects.length) {
-        const match = services.find((s) => s.name === selection.effects[0]);
-        if (match) select.value = match.name;
-      }
-      const message = qs<HTMLTextAreaElement>('#bf-message', form);
-      if (message && !message.value) {
-        const parts = [
-          selection.moment && `Trenutak: ${selection.moment}`,
-          selection.feeling && `Osjećaj: ${selection.feeling}`,
-          selection.effects.length && `Efekti: ${selection.effects.join(', ')}`,
-        ].filter(Boolean);
-        if (parts.length) message.value = parts.join('\n');
-      }
+    if (!trigger?.hasAttribute('data-from-builder')) return;
+
+    const selection = getSelection();
+    if (selection.effects.length) {
+      const match = services.find((s) => s.name === selection.effects[0]);
+      if (match) select.value = match.name;
     }
+
+    const message = qs<HTMLTextAreaElement>('#bf-message', form);
+    if (!message || message.value) return;
+
+    const parts = [
+      selection.moment && `Trenutak: ${selection.moment}`,
+      selection.feeling && `Osjećaj: ${selection.feeling}`,
+      selection.effects.length && `Efekti: ${selection.effects.join(', ')}`,
+    ].filter(Boolean);
+    if (parts.length) message.value = parts.join('\n');
   };
 
-  const close = (): void => {
-    modal.classList.remove('is-open');
-    document.documentElement.classList.remove('lenis-stopped');
-    window.setTimeout(() => {
-      modal.hidden = true;
-    }, 320);
-    lastFocused?.focus();
-  };
-
-  qsa('[data-open-booking]').forEach((trigger) =>
-    trigger.addEventListener('click', () => open(trigger as HTMLElement)),
-  );
-  qsa('[data-close-booking]', modal).forEach((btn) => btn.addEventListener('click', close));
-
-  document.addEventListener('keydown', (event) => {
-    if (modal.hidden) return;
-    if (event.key === 'Escape') {
-      close();
-      return;
-    }
-    if (event.key !== 'Tab') return;
-
-    const focusable = qsa<HTMLElement>(FOCUSABLE, panel).filter((el) => el.offsetParent !== null);
-    if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-
-    if (event.shiftKey && document.activeElement === first) {
-      last.focus();
-      event.preventDefault();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      first.focus();
-      event.preventDefault();
-    }
+  // Delegated: sections render their own booking triggers, and the effect
+  // preview adds one that changes service between openings.
+  document.addEventListener('click', (event) => {
+    const trigger = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-open-booking]');
+    if (!trigger) return;
+    prefill(trigger);
+    modal.open(trigger);
   });
 
   form.addEventListener('submit', async (event) => {

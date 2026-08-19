@@ -16,10 +16,12 @@ import './styles/sections.css';
 import { initNav } from './nav';
 import { initReveal } from './lib/reveal';
 import { initAbout } from './sections/about';
+import { initEffectPreview } from './sections/effect-preview';
 import { initBooking } from './booking/booking';
 
 function boot(): void {
   initAbout();
+  initEffectPreview();
   initNav();
   initBooking();
   initReveal();

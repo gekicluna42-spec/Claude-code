@@ -10,10 +10,11 @@ dance to the full DIP Studio production.
 
 ```bash
 npm install
-npm run media     # regenerate images from media-src/master-hero.png
+npm run frames    # frame ladders + player copies from media-src/hero-clip.mp4
+npm run media     # crops and posters from media-src/master-hero.png
 npm run dev       # http://localhost:5173
 npm run build
-npm run qa        # 42 automated checks across mobile / tablet / desktop
+npm run qa        # 58 automated checks across mobile / tablet / desktop
 ```
 
 ## What DIP Studio needs to fill in
@@ -41,15 +42,35 @@ behind it.
 
 ## How the hero works
 
-`src/hero/` renders the five acts from a single master frame:
+The hero scrubs **real footage** — `media-src/hero-clip.mp4` (1280×720, 10 s,
+24 fps) — as a frame sequence rather than by seeking a video, because seeking
+under scroll stalls on keyframes (worst on iOS). `npm run frames` produces two
+ladders: a 480-wide one that loads first so scrubbing responds immediately, and
+a 1280-wide one that streams in behind it, plus muted MP4/WebM copies for the
+in-page player and the poster frames.
 
-- `timeline.ts` — the acts. Scene state is a **pure function of scroll
-  progress**, which is why scrolling up rewinds the moment exactly.
-- `shaders.ts` — a virtual camera (crop, parallax by depth, defocus), a film
-  grade, and the effect layers: low fog, light beams, star ceiling, bloom.
-- `sparks.ts` — cold spark fountains as additive GPU particles.
-- `sources.ts` — `createImageSource` today, `createVideoSource` for when the
-  generated clip lands. Same interface, so swapping is a one-line change.
+`src/hero/` then treats the footage as the subject:
+
+- `timeline.ts` — the five acts, in the order the footage actually shows them:
+  iščekivanje → oblak → prskalice → prvi ples → spektakl. Scene state is a
+  **pure function of scroll progress**, which is why scrolling up rewinds the
+  moment exactly. The procedural fog / spark / star / beam layers sit at zero
+  here — the footage already contains those effects, and doubling them would
+  read as fake.
+- `shaders.ts` — a virtual camera (crop, parallax, defocus), a film grade,
+  bloom, vignette and grain over the footage.
+- `sources.ts` — `createFrameSequenceSource` (the default, shared between the
+  hero and the effect previews via a ref-counted cache), plus
+  `createVideoSource` and `createImageSource` behind the same interface.
+
+## Effect previews
+
+"Pogledaj efekat" opens a panel that plays the segment of the clip where that
+effect actually happens — low fog, cold sparks, ambient light with the star
+ceiling, laser beams. The other ten services are **not** in the footage, so
+they open the same panel with a still and their own copy; nothing invents
+motion for a 360 booth or a neon sign. Every panel says so:
+*"Kinematografski prikaz — nije snimak stvarnog događaja."*
 
 It never initialises under `prefers-reduced-motion` or without WebGL — the
 static hero image is already in the DOM and simply stays. On phones it runs a

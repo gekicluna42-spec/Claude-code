@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 4173",
+    "preview": "vite preview",
     "media": "node scripts/media.mjs",
-    "qa": "node scripts/qa.mjs"
+    "frames": "node scripts/frames.mjs",
+    "qa": "node scripts/qa.mjs",
+    "singlefile": "node scripts/preview-html.mjs && vite build --config vite.preview.config.ts && node scripts/singlefile.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@types/node": "^26.2.0",
     "@types/three": "^0.185.4",
     "puppeteer": "^25.5.0",

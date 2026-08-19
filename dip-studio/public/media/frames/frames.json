@@ -1,0 +1,21 @@
+{
+  "count": 120,
+  "stride": 2,
+  "sourceFps": 24,
+  "duration": 10.006,
+  "aspect": 1.7777777777777777,
+  "ladders": [
+    {
+      "dir": "sm",
+      "width": 480,
+      "webp": true
+    },
+    {
+      "dir": "lg",
+      "width": 1280,
+      "webp": false
+    }
+  ],
+  "poster": "clip-poster",
+  "payoff": "clip-payoff"
+}

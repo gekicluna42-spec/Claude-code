@@ -19,6 +19,7 @@ import './styles/sections.css';
 import Lenis from 'lenis';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+import { clipUrl, CLIP_POSTER } from './data/clip';
 import { initNav } from './nav';
 import { initReveal } from './lib/reveal';
 import { prefersReducedMotion } from './lib/dom';
@@ -29,6 +30,7 @@ import { initCompare } from './sections/compare';
 import { initGallery } from './sections/gallery';
 import { initSocial } from './sections/social';
 import { initAbout } from './sections/about';
+import { initEffectPreview } from './sections/effect-preview';
 import { initBooking } from './booking/booking';
 import { mountHero } from './hero';
 
@@ -39,6 +41,7 @@ function boot(): void {
   initBuilder();
   initGallery();
   initSocial();
+  initEffectPreview();
 
   initNav();
   initCompare();
@@ -55,7 +58,8 @@ function boot(): void {
   requestAnimationFrame(raf);
   lenis.on('scroll', ScrollTrigger.update);
 
-  void mountHero({ imageUrl: '/media/hero-master-2200.jpg' }).then(() => ScrollTrigger.refresh());
+  // One file cannot carry 120 frames, so the shareable build scrubs the clip.
+  void mountHero({ videoUrl: clipUrl(), imageUrl: CLIP_POSTER }).then(() => ScrollTrigger.refresh());
 }
 
 if (document.readyState === 'loading') {

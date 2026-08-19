@@ -18,10 +18,21 @@ const dist = join(root, 'dist-preview');
 const mediaDir = join(root, 'public', 'media');
 const OUT = join(root, 'preview', 'dip-studio-preview.html');
 
-const MIME = { '.avif': 'image/avif', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml' };
+const MIME = {
+  '.avif': 'image/avif',
+  '.webp': 'image/webp',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.mp4': 'video/mp4',
+};
 
 /** One width per image keeps the file small; AVIF everywhere it exists. */
-const pick = (base) => (base === 'hero-master' ? `${base}-1600.avif` : `${base}-800.avif`);
+const pick = (base) => {
+  if (base === 'hero-master') return `${base}-1600.avif`;
+  // Posters are emitted without a width suffix.
+  if (base.startsWith('clip-')) return `${base}.avif`;
+  return `${base}-800.avif`;
+};
 
 async function dataUri(fileName) {
   const buf = await readFile(join(mediaDir, fileName));
@@ -43,8 +54,12 @@ async function main() {
   // Every distinct /media/<base>-<width>.<ext> reference collapses to one
   // data URI per base image.
   const bases = new Set();
-  for (const match of html.matchAll(/\/media\/([a-z0-9-]+)-\d+\.(?:avif|webp|jpg)/g)) bases.add(match[1]);
-  for (const match of js.matchAll(/\/media\/([a-z0-9-]+)-\d+\.(?:avif|webp|jpg)/g)) bases.add(match[1]);
+  const collect = (text) => {
+    for (const m of text.matchAll(/\/media\/([a-z0-9-]+)-\d+\.(?:avif|webp|jpg)/g)) bases.add(m[1]);
+    for (const m of text.matchAll(/\/media\/(clip-[a-z]+)\.(?:avif|webp|jpg)/g)) bases.add(m[1]);
+  };
+  collect(html);
+  collect(js);
 
   // The sections build image paths at runtime, so every manifest base needs an
   // embedded copy too — not just the ones spelled out in the markup.
@@ -55,7 +70,9 @@ async function main() {
   for (const base of bases) uris.set(base, await dataUri(pick(base)));
 
   const inlineMedia = (text) =>
-    text.replace(/\/media\/([a-z0-9-]+)-\d+\.(?:avif|webp|jpg)/g, (whole, base) => uris.get(base) ?? whole);
+    text
+      .replace(/\/media\/([a-z0-9-]+)-\d+\.(?:avif|webp|jpg)/g, (whole, base) => uris.get(base) ?? whole)
+      .replace(/\/media\/(clip-[a-z]+)\.(?:avif|webp|jpg)/g, (whole, base) => uris.get(base) ?? whole);
 
   // Bosnian needs latin + latin-ext only; the Cyrillic, Greek and Vietnamese
   // faces would otherwise carry ~150 kB of inlined woff2 for nothing.
@@ -66,6 +83,9 @@ async function main() {
       const wanted = /U\+0(0|1|2)/i.test(range[1]);
       return wanted ? block : '';
     });
+
+  // The hero clip travels inline too — the single file has no /media to fetch.
+  const clipUri = await dataUri('hero-clip.mp4');
 
   let out = html;
 
@@ -107,7 +127,10 @@ async function main() {
 -->`;
 
   const mediaMap = `<script>window.__DIP_MEDIA__ = ${JSON.stringify(Object.fromEntries(uris))};</script>`;
-  const script = `${mediaMap}\n<script type="module">\n${inlineMedia(js)}\n</script>`;
+  // The clip is inlined exactly once and read through a global, so the three
+  // places that reference it do not each carry a copy.
+  const clipGlobal = `<script>window.__DIP_CLIP__ = ${JSON.stringify(clipUri)};</script>`;
+  const script = `${mediaMap}\n${clipGlobal}\n<script type="module">\n${inlineMedia(js)}\n</script>`;
   const single = `${title}\n${banner}\n${style}\n${ld}\n${bodyInner}\n${script}\n`;
 
   await writeFile(OUT, single, 'utf8');

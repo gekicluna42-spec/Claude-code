@@ -19,8 +19,7 @@
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preload" as="image" type="image/avif" fetchpriority="high"
-      href="/media/hero-master-1600.avif"
-      imagesrcset="/media/hero-master-1024.avif 1024w, /media/hero-master-1600.avif 1600w, /media/hero-master-2200.avif 2200w"
+      href="/media/clip-poster.avif"
       imagesizes="100vw" />
 
 <script type="application/ld+json">
@@ -90,16 +89,13 @@
 <section class="hero" id="hero" aria-label="DIP Studio — jedan trenutak, pet scena">
   <div class="hero__stage">
     <picture>
-      <source type="image/avif" sizes="100vw"
-        srcset="/media/hero-master-1024.avif 1024w, /media/hero-master-1600.avif 1600w, /media/hero-master-2200.avif 2200w" />
-      <source type="image/webp" sizes="100vw"
-        srcset="/media/hero-master-1024.webp 1024w, /media/hero-master-1600.webp 1600w, /media/hero-master-2200.webp 2200w" />
+      <source type="image/avif" sizes="100vw" srcset="/media/clip-poster.avif" />
+      <source type="image/webp" sizes="100vw" srcset="/media/clip-poster.webp" />
       <img
         class="hero__fallback"
-        src="/media/hero-master-1600.jpg"
-        srcset="/media/hero-master-1024.jpg 1024w, /media/hero-master-1600.jpg 1600w, /media/hero-master-2200.jpg 2200w"
+        src="/media/clip-poster.jpg"
         sizes="100vw"
-        width="1672" height="941"
+        width="1280" height="720"
         alt="Mladenci na plesnom podiju u niskom dimu, okruženi hladnim prskalicama i ambijentalnom rasvjetom."
         fetchpriority="high" decoding="async" />
     </picture>
@@ -115,15 +111,15 @@
           <p class="hero__sub">Sarajevo, od 2022. Efekti i atrakcije za vjenčanja, svadbe, rođendane i korporativne događaje.</p>
         </div>
         <div class="hero__beat" data-beat="1" aria-hidden="true">
-          <p class="hero__line">Neka prvi ples bude više od plesa.</p>
-        </div>
-        <div class="hero__beat" data-beat="2" aria-hidden="true">
           <p class="hero__line">Plešite na oblacima.</p>
           <p class="hero__sub">Niski dim — stvara magičnu, suptilnu atmosferu.</p>
         </div>
-        <div class="hero__beat" data-beat="3" aria-hidden="true">
+        <div class="hero__beat" data-beat="2" aria-hidden="true">
           <p class="hero__line">Svjetlo koje se pamti.</p>
           <p class="hero__sub">Prskalice — sve vrste prskalica za unutarnju i vanjsku upotrebu.</p>
+        </div>
+        <div class="hero__beat" data-beat="3" aria-hidden="true">
+          <p class="hero__line">Neka prvi ples bude više od plesa.</p>
         </div>
         <div class="hero__beat" data-beat="4" aria-hidden="true">
           <p class="hero__line">Napravimo trenutak o kojem će se pričati.</p>
@@ -141,9 +137,9 @@
 
   <ol class="acts" aria-label="Tok scene">
     <li class="acts__item" aria-current="true"><span class="acts__num">01</span><span class="acts__bar"></span><span class="acts__label">Iščekivanje</span></li>
-    <li class="acts__item" aria-current="false"><span class="acts__num">02</span><span class="acts__bar"></span><span class="acts__label">Prvi ples</span></li>
-    <li class="acts__item" aria-current="false"><span class="acts__num">03</span><span class="acts__bar"></span><span class="acts__label">Oblak</span></li>
-    <li class="acts__item" aria-current="false"><span class="acts__num">04</span><span class="acts__bar"></span><span class="acts__label">Prskalice</span></li>
+    <li class="acts__item" aria-current="false"><span class="acts__num">02</span><span class="acts__bar"></span><span class="acts__label">Oblak</span></li>
+    <li class="acts__item" aria-current="false"><span class="acts__num">03</span><span class="acts__bar"></span><span class="acts__label">Prskalice</span></li>
+    <li class="acts__item" aria-current="false"><span class="acts__num">04</span><span class="acts__bar"></span><span class="acts__label">Prvi ples</span></li>
     <li class="acts__item" aria-current="false"><span class="acts__num">05</span><span class="acts__bar"></span><span class="acts__label">Spektakl</span></li>
   </ol>
 </section>
@@ -168,6 +164,7 @@
     <header class="section-head" data-reveal>
       <p class="eyebrow section-head__index">03 — Biblioteka efekata</p>
       <h2 class="section-head__title" id="efekti-title">Odaberite trenutak.<br />Efekat slijedi.</h2>
+      <p><button class="link-underline" data-play-clip>Pogledaj scenu (0:10) <span aria-hidden="true">→</span></button></p>
     </header>
 
     <div class="library__tabs" role="tablist" aria-label="Trenuci">
@@ -347,13 +344,10 @@
 <!-- ============================ 10 · FINALE ========================== -->
 <section class="finale" id="kontakt" aria-labelledby="finale-title">
   <picture>
-    <source type="image/avif" sizes="100vw"
-      srcset="/media/hero-master-1024.avif 1024w, /media/hero-master-1600.avif 1600w" />
-    <source type="image/webp" sizes="100vw"
-      srcset="/media/hero-master-1024.webp 1024w, /media/hero-master-1600.webp 1600w" />
-    <img class="finale__media" src="/media/hero-master-1600.jpg"
-         srcset="/media/hero-master-1024.jpg 1024w, /media/hero-master-1600.jpg 1600w"
-         sizes="100vw" width="1672" height="941" loading="lazy" decoding="async"
+    <source type="image/avif" sizes="100vw" srcset="/media/clip-payoff.avif" />
+    <source type="image/webp" sizes="100vw" srcset="/media/clip-payoff.webp" />
+    <img class="finale__media" src="/media/clip-payoff.jpg"
+         sizes="100vw" width="1600" height="900" loading="lazy" decoding="async"
          alt="Sala u punom sjaju — dim, prskalice, ambijentalna rasvjeta i gosti." />
   </picture>
   <div class="finale__veil" aria-hidden="true"></div>

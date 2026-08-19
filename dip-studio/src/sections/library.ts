@@ -7,6 +7,7 @@ import { momentGroups, serviceById, type Service } from '../data/services';
 import { imageMarkup } from '../data/media';
 import { esc, qs, qsa } from '../lib/dom';
 import { revealNow } from '../lib/reveal';
+import { hasLivePreview } from './effect-preview';
 
 const card = (service: Service): string => `
   <article class="card" data-reveal>
@@ -16,11 +17,10 @@ const card = (service: Service): string => `
     <div class="card__body">
       <h3 class="card__title">${esc(service.name)}</h3>
       <p class="card__tagline">${esc(service.tagline)}</p>
-      ${
-        service.page
-          ? `<a class="link-underline" href="${service.page}">Pogledaj efekat <span aria-hidden="true">→</span></a>`
-          : `<button class="link-underline" data-open-booking data-service="${esc(service.id)}">Pogledaj efekat <span aria-hidden="true">→</span></button>`
-      }
+      <button class="link-underline" data-effect-preview="${esc(service.id)}">
+        Pogledaj efekat
+        <span aria-hidden="true">${hasLivePreview(service.id) ? '▶' : '→'}</span>
+      </button>
     </div>
   </article>
 `;

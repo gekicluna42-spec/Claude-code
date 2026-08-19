@@ -1,9 +1,15 @@
 # Cinematic media — generation sheet
 
-Everything on the site currently renders from **one master frame**
-(`media-src/master-hero.png`, 1672×941). The hero engine builds all five acts
-from it with a virtual camera, so the site is complete without any further
-generation.
+**The hero now scrubs supplied footage** — `media-src/hero-clip.mp4`
+(1280×720, 10.006 s, 24 fps, H.264). `npm run frames` turns it into the frame
+ladders the hero scrubs, the muted player copies, and the posters. Nothing
+below is required for the site to be complete.
+
+The master still (`media-src/master-hero.png`, 1672×941) still supplies the
+service card crops and the gallery via `npm run media`.
+
+The Seedance pass below remains documented for the day the CDN is reachable
+and DIP Studio wants act-by-act frames generated rather than filmed.
 
 This document exists so the next pass — real act keyframes and the payoff
 clip — can be run exactly, without re-deriving anything.
