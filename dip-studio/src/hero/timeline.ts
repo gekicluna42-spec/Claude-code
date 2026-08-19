@@ -193,8 +193,9 @@ export function pace(progress: number): number {
     if (span <= 0) return p;
 
     const t = (p - start) / span;
-    // Gentle: a full smoothstep over-holds and reads as sticking.
-    const eased = t + (ease(t) - t) * 0.55;
+    // Light touch. Holding harder near an act boundary stretches the same
+    // frames over more scroll, which is exactly where stepping shows.
+    const eased = t + (ease(t) - t) * 0.25;
     return start + eased * span;
   }
 

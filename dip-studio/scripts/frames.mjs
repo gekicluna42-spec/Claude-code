@@ -27,13 +27,19 @@ const mediaDir = join(root, 'public', 'media');
 const framesDir = join(mediaDir, 'frames');
 const tmpDir = join(root, '.frames-tmp');
 
-/** Every 2nd source frame: 12 fps of a 24 fps clip, ample for scrubbing. */
-const STRIDE = 2;
+/**
+ * Every source frame. At 12 fps the gap between neighbours was large enough
+ * for a fast camera move to read as a jump, and cross-fading cannot invent
+ * the motion in between — so the ladder runs at the clip's own 24 fps.
+ */
+const STRIDE = 1;
 const LADDERS = [
   // WebP is emitted only for the small ladder: browsers without AVIF get the
   // 480-wide set rather than a second full-size ladder nobody else downloads.
   { width: 480, dir: 'sm', quality: 42, webp: true },
-  { width: 1280, dir: 'lg', quality: 46, webp: false },
+  // 1152 rather than 1280: twice the frames at a slightly smaller width costs
+  // about 2 MB, and this frame sits behind text under grain and bloom.
+  { width: 1152, dir: 'lg', quality: 46, webp: false },
 ];
 
 async function ffmpegRun(args) {

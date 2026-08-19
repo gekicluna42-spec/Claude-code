@@ -11,12 +11,8 @@ import * as THREE from 'three';
 export interface HeroSource {
   readonly texture: THREE.Texture;
   readonly size: THREE.Vector2;
-  /**
-   * Called every frame with 0–1 progress; image sources ignore it.
-   * `blend` (0–1) is how much cross-fade to apply between adjacent frames:
-   * the stage feeds it scroll speed, so motion blurs and rest stays crisp.
-   */
-  update(progress: number, blend?: number): void;
+  /** Called every frame with 0–1 progress; image sources ignore it. */
+  update(progress: number): void;
   dispose(): void;
 }
 
@@ -190,8 +186,9 @@ async function buildFrameSequenceSource(
 
   /** Fractional index last drawn, so tiny moves skip the redraw entirely. */
   let lastExact = -1;
-  let lastTier: Tier | undefined;
-  let lastBlend = -1;
+  let lastPairTier: Tier | undefined;
+  /** Where the scrub currently is, so the loader can work outward from it. */
+  let playhead = 0;
 
   const frameUrl = (dir: string, index: number): string =>
     `${base}${dir}/${String(index).padStart(4, '0')}.${ext}`;
@@ -217,26 +214,51 @@ async function buildFrameSequenceSource(
   ready = 1;
 
   /**
-   * Coarse to fine: every 8th frame, then 4th, 2nd, then the rest. The whole
-   * timeline is covered within about fifteen images, so an early fast scroll
-   * always lands near a real frame instead of reaching for a distant one.
+   * Coarse to fine: every 8th frame, then 4th, 2nd, then the rest — so the
+   * whole timeline is covered early, at low temporal resolution, and fills in
+   * from there.
    */
   const STRIDES = [8, 4, 2, 1];
 
+  const fetchFrame = async (dir: string, tier: Tier, i: number): Promise<void> => {
+    if (i < 0 || i >= manifest.count) return;
+    if (tiers[i] === tier || (tier === 'sm' && tiers[i] === 'lg')) return;
+    try {
+      const img = await load(frameUrl(dir, i));
+      frames[i] = img;
+      tiers[i] = tier;
+      if (tier === 'sm') onProgress?.(++ready, manifest.count);
+      // Force a redraw when the frame on screen just improved.
+      if (Math.abs(lastExact - i) < 1.5) lastExact = -1;
+    } catch {
+      /* A gap is held over, never jumped over — see nearby(). */
+    }
+  };
+
+  /**
+   * Whatever the visitor is looking at loads first. A slow scroll then always
+   * has its immediate neighbourhood present, which is where stepping would
+   * otherwise show.
+   */
+  const PRIORITY_RADIUS = 6;
+
+  const loadAroundPlayhead = async (dir: string, tier: Tier): Promise<void> => {
+    const centre = Math.round(playhead * (manifest.count - 1));
+    for (let d = 0; d <= PRIORITY_RADIUS; d++) {
+      await fetchFrame(dir, tier, centre + d);
+      if (d > 0) await fetchFrame(dir, tier, centre - d);
+    }
+  };
+
   const loadLadder = async (dir: string, tier: Tier): Promise<void> => {
+    await loadAroundPlayhead(dir, tier);
     for (const stride of STRIDES) {
       for (let i = 0; i < manifest.count; i += stride) {
-        if (tiers[i] === tier || (tier === 'sm' && tiers[i] === 'lg')) continue;
-        try {
-          const img = await load(frameUrl(dir, i));
-          frames[i] = img;
-          tiers[i] = tier;
-          if (tier === 'sm') onProgress?.(++ready, manifest.count);
-          // Force a redraw when the frame on screen just improved.
-          if (Math.round(lastExact) === i) lastExact = -1;
-        } catch {
-          /* A missing frame falls back to the nearest one already loaded. */
+        // Re-check the playhead between frames: the visitor may have moved on.
+        if (Math.abs(i - playhead * (manifest.count - 1)) > PRIORITY_RADIUS * 4) {
+          await loadAroundPlayhead(dir, tier);
         }
+        await fetchFrame(dir, tier, i);
       }
     }
   };
@@ -247,8 +269,15 @@ async function buildFrameSequenceSource(
     if (large && (ext === 'avif' || large.webp)) await loadLadder(large.dir, 'lg');
   })();
 
-  const nearest = (index: number): HTMLImageElement | undefined => {
-    for (let d = 0; d < manifest.count; d++) {
+  /**
+   * Only a close neighbour may stand in for a missing frame. Reaching further
+   * would cut to a moment half a second away, which is precisely the jump this
+   * whole approach exists to avoid — better to hold what is already drawn.
+   */
+  const NEIGHBOUR_LIMIT = 3;
+
+  const nearby = (index: number): HTMLImageElement | undefined => {
+    for (let d = 0; d <= NEIGHBOUR_LIMIT; d++) {
       if (frames[index - d]) return frames[index - d];
       if (frames[index + d]) return frames[index + d];
     }
@@ -259,36 +288,36 @@ async function buildFrameSequenceSource(
     texture,
     size: new THREE.Vector2(width, height),
 
-    update(progress: number, blend = 1) {
+    update(progress: number) {
       if (!ctx) return;
 
       const last = manifest.count - 1;
       const exact = Math.min(last, Math.max(0, progress * last));
+      playhead = progress;
+
       const index = Math.floor(exact);
-      const rawFrac = exact - index;
-
-      // At rest the fraction rounds to a whole frame, so a settled hero is
-      // crisp; while scrolling it keeps its true value and the cross-fade
-      // reads as motion blur.
-      const frac = blend * rawFrac + (1 - blend) * Math.round(rawFrac);
-
-      const tier = tiers[index];
-      if (Math.abs(exact - lastExact) < 0.01 && tier === lastTier && blend === lastBlend) return;
+      const frac = exact - index;
 
       const current = frames[index];
       const next = frames[index + 1];
 
-      // Only genuinely adjacent frames may be blended. Mixing a loaded frame
-      // with one several steps away — which happens while the ladder is still
-      // filling in — produces a double image, not a blur.
-      const canBlend = Boolean(current && next) && frac > 0.01 && frac < 0.99;
-      const base = current ?? nearest(index);
+      // A pair must come from one ladder: mixing a 480px frame with a 1152px
+      // one makes sharpness flicker mid-blend while the ladders fill in.
+      const pairTier: Tier | undefined =
+        current && next && tiers[index] === tiers[index + 1] ? tiers[index] : undefined;
+
+      if (Math.abs(exact - lastExact) < 0.004 && pairTier === lastPairTier) return;
+
+      const base = current ?? nearby(index);
+      // Nothing close enough: hold whatever is on screen rather than cut away.
       if (!base) return;
 
       ctx.globalAlpha = 1;
       ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
 
-      if (canBlend && next) {
+      // Always cross-fade. The fractional position is the whole point of a
+      // scrubbed sequence; snapping to whole frames is what makes it step.
+      if (pairTier && next && frac > 0.004) {
         ctx.globalAlpha = frac;
         ctx.drawImage(next, 0, 0, canvas.width, canvas.height);
         ctx.globalAlpha = 1;
@@ -296,8 +325,7 @@ async function buildFrameSequenceSource(
 
       texture.needsUpdate = true;
       lastExact = exact;
-      lastTier = tier;
-      lastBlend = blend;
+      lastPairTier = pairTier;
     },
 
     dispose() {

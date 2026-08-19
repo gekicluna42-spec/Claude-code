@@ -14,6 +14,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer';
+import sharp from 'sharp';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const shots = join(root, 'qa-shots');
@@ -397,6 +398,78 @@ async function main() {
         glide.available
           ? `settled in ${glide.settledAt}ms (budget ${Math.round(budget)}ms)`
           : 'hook unavailable',
+      );
+
+      await page.close();
+    }
+
+    // ---- stepping: does the image move continuously, or freeze then jump? ----
+    {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 1440, height: 900 });
+      await page.goto(`${BASE}/?qa=1`, { waitUntil: 'networkidle2' });
+      await sleep(6000); // let the priority window fill in
+
+      const manifest = await (await fetch(`${BASE}/media/frames/frames.json`)).json();
+      record(
+        '[frames] ladder runs at the clip\'s own frame rate',
+        manifest.stride === 1 && manifest.count > 200,
+        `${manifest.count} frames, stride ${manifest.stride}`,
+      );
+
+      // Step by roughly half a source frame. With interpolation every step
+      // changes the image a little; without it, half the steps change nothing
+      // and the rest jump a whole frame.
+      const stepProgress = 0.5 / (manifest.count - 1);
+      // Screenshot the viewport and crop here: puppeteer's own `clip` is
+      // document-relative, which over a sticky hero captures the same region
+      // no matter where the page is scrolled.
+      const crop = { left: 420, top: 180, width: 600, height: 340 };
+      const deltas = [];
+      let previous = null;
+
+      for (let i = 0; i < 12; i++) {
+        const p = 0.42 + i * stepProgress;
+        await page.evaluate((target) => {
+          const hero = document.querySelector('#hero');
+          window.scrollTo(0, (hero.offsetHeight - window.innerHeight) * target);
+        }, p);
+
+        // Wait for the glide to settle so we compare settled frames.
+        await page.waitForFunction(
+          (target) => {
+            const api = window.__DIP_HERO__;
+            return api && Math.abs(api.rendered() - target) < 0.0008;
+          },
+          { timeout: 8000, polling: 100 },
+          p,
+        ).catch(() => undefined);
+        await sleep(350);
+
+        const shot = await page.screenshot();
+        const { data } = await sharp(shot).extract(crop).raw().toBuffer({ resolveWithObject: true });
+        if (previous) {
+          let sum = 0;
+          for (let b = 0; b < data.length; b++) sum += Math.abs(data[b] - previous[b]);
+          deltas.push(sum / data.length);
+        }
+        previous = data;
+      }
+
+      const sorted = [...deltas].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const max = sorted[sorted.length - 1];
+      const frozen = deltas.filter((d) => d < 0.15).length;
+
+      record(
+        '[frames] half-frame scroll steps move the image every time',
+        frozen === 0,
+        `${frozen} frozen of ${deltas.length} steps`,
+      );
+      record(
+        '[frames] no step jumps far beyond the others',
+        median > 0 && max / median < 6,
+        `median ${median.toFixed(2)}, max ${max.toFixed(2)}, ratio ${(max / median).toFixed(1)}x`,
       );
 
       await page.close();

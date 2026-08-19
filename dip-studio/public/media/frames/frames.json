@@ -1,6 +1,6 @@
 {
-  "count": 120,
-  "stride": 2,
+  "count": 240,
+  "stride": 1,
   "sourceFps": 24,
   "duration": 10.006,
   "aspect": 1.7777777777777777,
@@ -12,7 +12,7 @@
     },
     {
       "dir": "lg",
-      "width": 1280,
+      "width": 1152,
       "webp": false
     }
   ],

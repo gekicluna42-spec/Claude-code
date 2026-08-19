@@ -14,7 +14,7 @@ npm run frames    # frame ladders + player copies from media-src/hero-clip.mp4
 npm run media     # crops and posters from media-src/master-hero.png
 npm run dev       # http://localhost:5173
 npm run build
-npm run qa        # 60 automated checks across mobile / tablet / desktop
+npm run qa        # 63 automated checks across mobile / tablet / desktop
 ```
 
 ## What DIP Studio needs to fill in
@@ -45,9 +45,13 @@ behind it.
 The hero scrubs **real footage** — `media-src/hero-clip.mp4` (1280×720, 10 s,
 24 fps) — as a frame sequence rather than by seeking a video, because seeking
 under scroll stalls on keyframes (worst on iOS). `npm run frames` produces two
-ladders: a 480-wide one that loads first so scrubbing responds immediately, and
-a 1280-wide one that streams in behind it, plus muted MP4/WebM copies for the
-in-page player and the poster frames.
+ladders at the clip's own 24 fps — 240 frames each: a 480-wide one that loads
+first so scrubbing responds immediately, and a 1152-wide one that streams in
+behind it — plus a muted MP4 for the in-page player and the poster frames.
+
+Frame rate is not a detail here. At 12 fps the gap between neighbours was wide
+enough for this camera move to read as a jump, and cross-fading cannot invent
+the motion in between.
 
 `src/hero/` then treats the footage as the subject:
 
@@ -57,13 +61,19 @@ in-page player and the poster frames.
   never land on the frame. Lenis runs on the GSAP ticker — one clock, ordered
   Lenis → ScrollTrigger → render — with `lagSmoothing(0)` so a slow frame
   cannot make GSAP skip an update.
-- Adjacent frames cross-fade rather than cut, and the blend amount follows
-  scroll speed: motion blurs, rest snaps to a whole frame and stays crisp.
-  Only genuinely adjacent frames are ever mixed — pairing distant frames while
-  the ladder is still loading produces a double image, not a blur.
-- Frames are decoded before they count as loaded, and they load coarse to fine
-  (every 8th, then 4th, 2nd, the rest), so an early fast scroll always lands
-  near a real frame and no decode ever happens on the scroll thread.
+- Adjacent frames always cross-fade rather than cut. The fractional position
+  is the whole point of a scrubbed sequence; gating the blend on scroll speed
+  (an earlier attempt at keeping a settled frame crisp) made slow scrolling —
+  the way people actually explore a hero — step frame to frame.
+- A pair is only ever blended within one ladder, so sharpness never flickers
+  while the large one fills in.
+- When a frame has not arrived, only a close neighbour (±3) may stand in for
+  it; past that the frame already on screen is held. A held frame reads as a
+  pause, a distant frame reads as a jump.
+- Frames are decoded before they count as loaded, and loading works outward
+  from the playhead first, then coarse to fine across the rest — so whatever
+  the visitor is looking at is what loads next, and no decode ever happens on
+  the scroll thread.
 - `timeline.ts` — the five acts, in the order the footage actually shows them:
   iščekivanje → oblak → prskalice → prvi ples → spektakl. Scene state is a
   **pure function of scroll progress**, which is why scrolling up rewinds the

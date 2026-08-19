@@ -219,15 +219,11 @@ export class HeroStage {
     this.sparks.update(time);
 
     // The frame index is paced so the moment settles on each act's peak; the
-    // acts and copy beats stay on the raw value (see hero/index.ts).
-    // Blending follows speed: blurred through the move, crisp once settled.
-    // Previews drive progress on their own clock and are always in motion, so
-    // they always blend — without it a 12 fps ladder in slow motion steps.
-    const blend = this.options.stateProvider ? 1 : Math.min(v * 4, 1);
-    this.source.update(
-      this.options.stateProvider ? this.progress : pace(this.progress),
-      blend,
-    );
+    // acts and copy beats stay on the raw value (see hero/index.ts). The
+    // source always interpolates between frames — speed drives the grade
+    // above, never the blend, because gating the blend on speed is what made
+    // a slow scroll step.
+    this.source.update(this.options.stateProvider ? this.progress : pace(this.progress));
     this.renderer.render(this.scene, this.camera);
   }
 
