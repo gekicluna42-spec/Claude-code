@@ -14,4 +14,11 @@ declare global {
 
 export const clipUrl = (): string => window.__DIP_CLIP__ ?? '/media/hero-clip.mp4';
 
+/**
+ * The single-file build embeds the frame ladder and skips the clip: the
+ * descent already IS the clip there, and inlining both would double the page.
+ * Where no clip is available, the "watch the scene" control is not offered.
+ */
+export const hasClip = (): boolean => Boolean(window.__DIP_CLIP__) || !window.__DIP_FRAMES__;
+
 export const CLIP_POSTER = '/media/clip-poster.jpg';

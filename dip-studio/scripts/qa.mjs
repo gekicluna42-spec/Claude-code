@@ -202,6 +202,33 @@ async function main() {
       const summary = await page.$eval('[data-summary="moment"]', (el) => el.textContent?.trim());
       record(`[${vp.name}] builder updates the summary`, Boolean(summary) && summary !== 'Još niste odabrali', summary);
 
+      // ---- the descent shows no copy until it is over ----
+      const choreography = await page.evaluate(async () => {
+        const hero = document.querySelector('#hero');
+        const total = hero.offsetHeight - window.innerHeight;
+        const opacityAt = async (fraction) => {
+          window.scrollTo(0, Math.round(total * fraction));
+          // The reveal runs a 1.2s fade; sample the settled state, not the
+          // middle of the transition.
+          await new Promise((r) => setTimeout(r, 1800));
+          return Number(getComputedStyle(document.querySelector('#hero-reveal')).opacity);
+        };
+        return {
+          start: await opacityAt(0.02),
+          middle: await opacityAt(0.45),
+          lateMiddle: await opacityAt(0.7),
+          end: await opacityAt(0.99),
+        };
+      });
+      record(
+        `[${vp.name}] copy stays out of the descent and arrives at the end`,
+        choreography.start < 0.05 &&
+          choreography.middle < 0.05 &&
+          choreography.lateMiddle < 0.05 &&
+          choreography.end > 0.9,
+        `start ${choreography.start}, mid ${choreography.middle}, end ${choreography.end}`,
+      );
+
       // ---- effect preview ----
       const livePreview = await page.evaluate(async () => {
         document.querySelector('#tab-prvi-ples')?.click();
@@ -485,26 +512,16 @@ async function main() {
       await page.goto(BASE, { waitUntil: 'networkidle2' });
       await sleep(800);
       const state = await page.evaluate(() => {
-        const boxes = Array.from(document.querySelectorAll('.hero__beat')).map((el) =>
-          el.getBoundingClientRect(),
-        );
-        let overlaps = 0;
-        for (let i = 0; i < boxes.length; i++) {
-          for (let j = i + 1; j < boxes.length; j++) {
-            const a = boxes[i];
-            const b = boxes[j];
-            const hit = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-            if (hit) overlaps++;
-          }
-        }
         const stage = document.querySelector('.hero__stage');
         const content = document.querySelector('.hero__content');
+        const revealStyle = getComputedStyle(document.querySelector('#hero-reveal'));
         return {
+          copyVisible: Number(revealStyle.opacity) > 0.9,
+          loaderHidden: getComputedStyle(document.querySelector('#hero-loader')).display === 'none',
           canvasLive: document.querySelector('#hero-canvas')?.classList.contains('is-live') ?? false,
           heroVisible: Boolean(document.querySelector('.hero__fallback')?.offsetHeight),
           revealed: document.querySelectorAll('[data-reveal].is-revealed').length,
           total: document.querySelectorAll('[data-reveal]').length,
-          overlaps,
           contentFits: content.getBoundingClientRect().bottom <= stage.getBoundingClientRect().bottom + 2,
         };
       });
@@ -514,9 +531,9 @@ async function main() {
         `${state.revealed}/${state.total} revealed`,
       );
       record(
-        '[reduced-motion] hero beats stack without overlapping',
-        state.overlaps === 0 && state.contentFits,
-        `${state.overlaps} overlap(s), content fits: ${state.contentFits}`,
+        '[reduced-motion] hero copy is present without a descent to scrub',
+        state.copyVisible && state.loaderHidden && state.contentFits,
+        `copy ${state.copyVisible}, loader hidden ${state.loaderHidden}`,
       );
       await page.screenshot({ path: join(shots, 'reduced-motion.png') });
       await page.close();

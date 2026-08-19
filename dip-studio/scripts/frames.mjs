@@ -40,6 +40,9 @@ const LADDERS = [
   // 1152 rather than 1280: twice the frames at a slightly smaller width costs
   // about 2 MB, and this frame sits behind text under grain and bloom.
   { width: 1152, dir: 'lg', quality: 46, webp: false },
+  // Only for the single-file build, which embeds every frame as a data URI:
+  // 768px keeps the whole descent inlineable inside the artifact size cap.
+  { width: 768, dir: 'md', quality: 44, webp: false },
 ];
 
 async function ffmpegRun(args) {

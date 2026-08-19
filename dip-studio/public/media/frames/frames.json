@@ -14,6 +14,11 @@
       "dir": "lg",
       "width": 1152,
       "webp": false
+    },
+    {
+      "dir": "md",
+      "width": 768,
+      "webp": false
     }
   ],
   "poster": "clip-poster",

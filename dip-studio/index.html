@@ -102,37 +102,25 @@
     <canvas class="hero__canvas" id="hero-canvas" aria-hidden="true"></canvas>
     <div class="hero__veil" aria-hidden="true"></div>
 
+    <!-- Nothing is shown until the descent is over: the scroll IS the hero. -->
+    <div class="hero__loader" id="hero-loader">
+      <p class="hero__loader-mark">DIP Studio</p>
+      <div class="hero__loader-bar"><span id="hero-loader-fill"></span></div>
+    </div>
+
     <div class="hero__content">
-      <p class="hero__brand">DIP Studio</p>
-
-      <div class="hero__beats">
-        <div class="hero__beat is-active" data-beat="0">
-          <h1 class="hero__line">Magija koja oživljava vaše trenutke.</h1>
-          <p class="hero__sub">Sarajevo, od 2022. Efekti i atrakcije za vjenčanja, svadbe, rođendane i korporativne događaje.</p>
+      <div class="hero__reveal" id="hero-reveal">
+        <p class="hero__brand">DIP Studio</p>
+        <h1 class="hero__line">Magija koja oživljava vaše trenutke.</h1>
+        <p class="hero__sub">Sarajevo, od 2022. Efekti i atrakcije za vjenčanja, svadbe, rođendane i korporativne događaje.</p>
+        <div class="hero__actions">
+          <button class="btn btn--primary btn--lg" data-open-booking>Rezerviši svoj datum</button>
+          <a class="btn btn--lg" href="#efekti">Pogledaj efekte</a>
         </div>
-        <div class="hero__beat" data-beat="1" aria-hidden="true">
-          <p class="hero__line">Plešite na oblacima.</p>
-          <p class="hero__sub">Niski dim — stvara magičnu, suptilnu atmosferu.</p>
-        </div>
-        <div class="hero__beat" data-beat="2" aria-hidden="true">
-          <p class="hero__line">Svjetlo koje se pamti.</p>
-          <p class="hero__sub">Prskalice — sve vrste prskalica za unutarnju i vanjsku upotrebu.</p>
-        </div>
-        <div class="hero__beat" data-beat="3" aria-hidden="true">
-          <p class="hero__line">Neka prvi ples bude više od plesa.</p>
-        </div>
-        <div class="hero__beat" data-beat="4" aria-hidden="true">
-          <p class="hero__line">Napravimo trenutak o kojem će se pričati.</p>
-        </div>
-      </div>
-
-      <div class="hero__actions">
-        <button class="btn btn--primary btn--lg" data-open-booking>Rezerviši svoj datum</button>
-        <a class="btn btn--lg" href="#efekti">Pogledaj efekte</a>
       </div>
     </div>
 
-    <p class="hero__hint">Skrolaj <span class="sr-only">za nastavak scene</span></p>
+    <p class="hero__hint" id="hero-hint">Skrolaj <span class="sr-only">kroz scenu</span></p>
   </div>
 
   <ol class="acts" aria-label="Tok scene">

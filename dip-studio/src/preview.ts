@@ -19,7 +19,7 @@ import './styles/sections.css';
 import Lenis from 'lenis';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-import { clipUrl, CLIP_POSTER } from './data/clip';
+import { CLIP_POSTER } from './data/clip';
 import { initNav } from './nav';
 import { initReveal } from './lib/reveal';
 import { prefersReducedMotion } from './lib/dom';
@@ -58,8 +58,13 @@ function boot(): void {
   requestAnimationFrame(raf);
   lenis.on('scroll', ScrollTrigger.update);
 
-  // One file cannot carry 120 frames, so the shareable build scrubs the clip.
-  void mountHero({ videoUrl: clipUrl(), imageUrl: CLIP_POSTER }).then(() => ScrollTrigger.refresh());
+  // The shareable build embeds the ladder and scrubs frames, exactly like the
+  // site. Seeking a video under scroll snaps to keyframes, which is what made
+  // this preview jump between scenes.
+  void mountHero({
+    framesUrl: '/media/frames/frames.json',
+    imageUrl: CLIP_POSTER,
+  }).then(() => ScrollTrigger.refresh());
 }
 
 if (document.readyState === 'loading') {

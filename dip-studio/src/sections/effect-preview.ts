@@ -13,9 +13,9 @@
  */
 
 import { serviceById } from '../data/services';
-import { clipUrl, CLIP_POSTER } from '../data/clip';
+import { clipUrl, hasClip, CLIP_POSTER } from '../data/clip';
 import { imageMarkup } from '../data/media';
-import { prefersReducedMotion, qs } from '../lib/dom';
+import { prefersReducedMotion, qs, qsa } from '../lib/dom';
 import { createModal, type ModalController } from '../lib/modal';
 import type { ActState } from '../hero/timeline';
 import type { HeroStage } from '../hero/HeroStage';
@@ -221,6 +221,10 @@ export function initEffectPreview(): void {
     modal.open(trigger);
     if (!prefersReducedMotion()) void video.play().catch(() => undefined);
   };
+
+  if (!hasClip()) {
+    qsa('[data-play-clip]').forEach((el) => el.closest('p')?.remove());
+  }
 
   // Delegated on purpose: the effect library re-renders its cards on every
   // tab switch, so listeners bound to the original buttons would be lost.

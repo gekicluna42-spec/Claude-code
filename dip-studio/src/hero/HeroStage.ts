@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { fragmentShader, vertexShader } from './shaders';
 import { createSparks, type Sparks } from './sparks';
 import type { HeroSource } from './sources';
-import { pace, stateAt, type ActState } from './timeline';
+import { stateAt, type ActState } from './timeline';
 
 export interface StageOptions {
   canvas: HTMLCanvasElement;
@@ -218,12 +218,10 @@ export class HeroStage {
     this.sparks.setSpread(0.55 + s.cropW * 0.55);
     this.sparks.update(time);
 
-    // The frame index is paced so the moment settles on each act's peak; the
-    // acts and copy beats stay on the raw value (see hero/index.ts). The
-    // source always interpolates between frames — speed drives the grade
-    // above, never the blend, because gating the blend on speed is what made
-    // a slow scroll step.
-    this.source.update(this.options.stateProvider ? this.progress : pace(this.progress));
+    // Scroll maps straight to clip time — no easing of the playhead. Any
+    // pacing curve speeds the footage up and slows it down mid-descent, which
+    // is exactly what stops it reading as a single continuous take.
+    this.source.update(this.progress);
     this.renderer.render(this.scene, this.camera);
   }
 

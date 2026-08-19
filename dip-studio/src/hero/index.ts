@@ -47,7 +47,9 @@ export async function mountHero(config: HeroConfig): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#hero-canvas');
   const hint = document.querySelector<HTMLElement>('.hero__hint');
   const indicator = document.querySelector<HTMLElement>('.acts');
-  const beats = Array.from(document.querySelectorAll<HTMLElement>('.hero__beat'));
+  const reveal = document.querySelector<HTMLElement>('#hero-reveal');
+  const loader = document.querySelector<HTMLElement>('#hero-loader');
+  const loaderFill = document.querySelector<HTMLElement>('#hero-loader-fill');
   const items = Array.from(document.querySelectorAll<HTMLElement>('.acts__item'));
 
   if (!hero || !canvas || !hasWebGL()) return;
@@ -57,10 +59,14 @@ export async function mountHero(config: HeroConfig): Promise<void> {
       ? 'low'
       : 'high';
 
+  const onProgress = (loaded: number, total: number): void => {
+    loaderFill?.style.setProperty('--load', String(Math.min(1, loaded / total)));
+  };
+
   let source: HeroSource;
   try {
     if (config.videoUrl) source = await createVideoSource(config.videoUrl);
-    else if (config.framesUrl) source = await createFrameSequenceSource(config.framesUrl);
+    else if (config.framesUrl) source = await createFrameSequenceSource(config.framesUrl, onProgress);
     else source = await createImageSource(config.imageUrl);
   } catch {
     // Losing the sequence must never take the page down: fall back to the
@@ -77,9 +83,18 @@ export async function mountHero(config: HeroConfig): Promise<void> {
     source,
     quality,
     // Touch reads lag more harshly than a wheel does, so phones glide less.
-    smoothing: quality === 'low' ? 0.05 : 0.07,
+    smoothing: quality === 'low' ? 0.07 : 0.09,
   });
+
+  // Hold on the loader until enough of the descent is decoded to scrub it
+  // without gaps — starting early is what makes a frame sequence stutter.
+  await Promise.race([
+    source.ready ?? Promise.resolve(),
+    new Promise((resolve) => window.setTimeout(resolve, 12000)),
+  ]);
+
   canvas.classList.add('is-live');
+  loader?.classList.add('is-done');
 
   // Render — and show the act rail — only while the hero is on screen.
   const visibility = new IntersectionObserver(
@@ -92,7 +107,10 @@ export async function mountHero(config: HeroConfig): Promise<void> {
   );
   visibility.observe(hero);
 
-  let activeBeat = -1;
+  let activeAct = -1;
+
+  /** The copy arrives only once the descent is essentially over. */
+  const REVEAL_AT = 0.86;
 
   const applyProgress = (p: number, snap = false): void => {
     if (snap) stage.snapProgress(p);
@@ -100,9 +118,11 @@ export async function mountHero(config: HeroConfig): Promise<void> {
 
     const { index, local } = actProgress(p);
 
-    if (index !== activeBeat) {
-      activeBeat = index;
-      beats.forEach((beat, i) => beat.classList.toggle('is-active', i === index));
+    reveal?.classList.toggle('is-revealed', p >= REVEAL_AT);
+    indicator?.classList.toggle('is-dimmed', p >= REVEAL_AT);
+
+    if (index !== activeAct) {
+      activeAct = index;
       items.forEach((item, i) => {
         item.setAttribute('aria-current', String(i === index));
         if (i < index) item.style.setProperty('--act-progress', '1');
@@ -112,7 +132,7 @@ export async function mountHero(config: HeroConfig): Promise<void> {
     }
 
     items[index]?.style.setProperty('--act-progress', local.toFixed(3));
-    hint?.classList.toggle('is-hidden', p > 0.04);
+    hint?.classList.toggle('is-hidden', p > 0.03);
   };
 
   ScrollTrigger.create({

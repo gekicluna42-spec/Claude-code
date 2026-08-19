@@ -4,8 +4,13 @@
 
 .hero {
   position: relative;
-  /* One viewport per act plus a hold on the payoff. */
-  height: 620vh;
+  /*
+   * A long runway on purpose. The clip is ten seconds; spreading it over this
+   * much scroll means a wheel notch advances a fraction of a second of
+   * footage, which is what makes the descent read as slow cinematic motion
+   * rather than a fast-forward.
+   */
+  height: 900vh;
 }
 
 .hero__stage {
@@ -70,49 +75,84 @@
   padding-left: 0.2em;
 }
 
-.hero__beats {
-  /* All beats occupy the same grid cell, so the block is as tall as the
-     longest one and a beat can never overlap the wordmark above it. */
+.hero__reveal {
   display: grid;
-  align-items: end;
-}
-
-.hero__beat {
-  grid-area: 1 / 1;
-  align-self: end;
-  width: min(100%, 26ch);
+  gap: 0;
   opacity: 0;
-  transform: translate3d(0, 1.5rem, 0);
-  transition: opacity 0.7s var(--e-out), transform 0.7s var(--e-out);
+  transform: translate3d(0, 2.5rem, 0);
+  transition:
+    opacity 1.2s var(--e-out),
+    transform 1.4s var(--e-out);
   pointer-events: none;
 }
-.hero__beat.is-active { opacity: 1; transform: none; pointer-events: auto; }
 
-.hero__beat h1,
-.hero__beat h2,
-.hero__beat p.hero__line {
+.hero__reveal.is-revealed {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.hero__line {
   font-family: var(--f-display);
   font-size: clamp(1.75rem, 4.2vw, 4rem);
   line-height: 1.08;
   text-transform: uppercase;
   letter-spacing: -0.01em;
+  max-width: 22ch;
 }
 
-.hero__beat .hero__sub {
+.hero__sub {
   margin-top: 1rem;
   font-family: var(--f-sans);
   font-size: var(--t-body);
-  text-transform: none;
-  letter-spacing: 0;
   color: var(--c-ivory-dim);
   max-width: 34ch;
 }
 
-.hero__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.85rem;
-  margin-top: clamp(1.5rem, 4vh, 2.75rem);
+/* ---- Preload gate ------------------------------------------------------ */
+
+.hero__loader {
+  position: absolute;
+  inset: 0;
+  z-index: calc(var(--z-heroui) + 1);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  background: var(--c-void);
+  transition: opacity 1s var(--e-out), visibility 1s;
+}
+
+.hero__loader.is-done {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.hero__loader-mark {
+  font-family: var(--f-sans);
+  font-size: clamp(0.75rem, 1.05vw, 0.9375rem);
+  font-weight: 500;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: var(--c-champagne);
+  padding-left: 0.42em;
+}
+
+.hero__loader-bar {
+  width: clamp(8rem, 18vw, 14rem);
+  height: 1px;
+  background: rgba(244, 239, 231, 0.16);
+  overflow: hidden;
+}
+
+.hero__loader-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--c-champagne);
+  transform: scaleX(var(--load, 0));
+  transform-origin: left;
+  transition: transform 0.4s var(--e-out);
 }
 
 /* ---- Act indicator ----------------------------------------------------- */
@@ -133,6 +173,8 @@
   pointer-events: none;
 }
 .acts.is-visible { opacity: 1; }
+/* The rail hands over to the copy at the end of the descent. */
+.acts.is-dimmed { opacity: 0.18; }
 
 .acts__item {
   text-shadow: 0 1px 12px rgba(6, 6, 7, 0.85);
@@ -213,8 +255,8 @@
   50% { transform: scaleY(1); transform-origin: top; opacity: 1; }
 }
 
-/* Reduced motion: the hero becomes a still, and the five beats read as a
-   written sequence instead of a scrubbed one. */
+/* Reduced motion: no descent to scrub, so the hero is a still and the copy
+   is simply there — nothing to reveal, nothing to preload. */
 @media (prefers-reduced-motion: reduce) {
   .hero { height: auto; }
 
@@ -230,33 +272,13 @@
     padding-top: clamp(7rem, 18vh, 11rem);
   }
 
-  .hero__beats {
-    display: grid;
-    gap: clamp(0.75rem, 2vh, 1.25rem);
-    align-items: start;
-    min-height: 0;
-  }
-
-  .hero__beat {
-    grid-area: auto;
-    align-self: start;
+  .hero__reveal {
     opacity: 1;
     transform: none;
-    width: min(100%, 34ch);
     pointer-events: auto;
   }
 
-  /* The opening statement keeps the display size; the later beats become a
-     quiet list so the block stays readable without motion. */
-  .hero__beat + .hero__beat .hero__line {
-    font-size: clamp(1rem, 1.9vw, 1.4rem);
-    line-height: 1.4;
-    color: var(--c-ivory-dim);
-    padding-top: 0.75rem;
-    border-top: 1px solid var(--c-line-soft);
-  }
-  .hero__beat + .hero__beat .hero__sub { display: none; }
-
+  .hero__loader { display: none; }
   .hero__hint { display: none; }
   .acts { display: none; }
 }

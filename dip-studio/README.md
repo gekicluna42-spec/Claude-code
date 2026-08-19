@@ -14,7 +14,7 @@ npm run frames    # frame ladders + player copies from media-src/hero-clip.mp4
 npm run media     # crops and posters from media-src/master-hero.png
 npm run dev       # http://localhost:5173
 npm run build
-npm run qa        # 63 automated checks across mobile / tablet / desktop
+npm run qa        # 66 automated checks across mobile / tablet / desktop
 ```
 
 ## What DIP Studio needs to fill in
@@ -53,6 +53,13 @@ Frame rate is not a detail here. At 12 fps the gap between neighbours was wide
 enough for this camera move to read as a jump, and cross-fading cannot invent
 the motion in between.
 
+The hero is the descent, and nothing competes with it: a preload gate holds on
+a minimal loader until ~45% of the sequence is decoded contiguously from the
+start, the scroll then runs the whole clip with no copy on screen at all, and
+the headline and CTAs arrive only in the last stretch (`REVEAL_AT = 0.86`).
+The runway is deliberately long — 900vh — so a wheel notch advances a fraction
+of a second of footage rather than fast-forwarding through it.
+
 `src/hero/` then treats the footage as the subject:
 
 - The scroll never drives the image directly. ScrollTrigger writes a *target*
@@ -74,6 +81,9 @@ the motion in between.
   from the playhead first, then coarse to fine across the rest — so whatever
   the visitor is looking at is what loads next, and no decode ever happens on
   the scroll thread.
+- Scroll maps straight to clip time. There is no pacing curve on the playhead:
+  easing it speeds the footage up and slows it down mid-descent, which is what
+  stops it reading as one continuous take.
 - `timeline.ts` — the five acts, in the order the footage actually shows them:
   iščekivanje → oblak → prskalice → prvi ples → spektakl. Scene state is a
   **pure function of scroll progress**, which is why scrolling up rewinds the
@@ -132,6 +142,12 @@ node scripts/singlefile.mjs      # → preview/dip-studio-preview.html
 ```
 
 Bakes the homepage into one self-contained HTML file — script, stylesheet,
-latin/latin-ext fonts and every image inlined as data URIs — for sharing where
-a static host is not available. The service pages do not exist inside a single
-file, so their links point at the on-page service catalog instead.
+fonts, every image, and the full 240-frame ladder at 768px, all inlined as
+data URIs — for sharing where a static host is not available.
+
+It scrubs the same frame sequence the site does. An earlier version handed the
+hero a video and scrubbed it by seeking, which snaps to keyframes and reads as
+jumping between scenes — the shareable link behaved worse than the site it was
+meant to preview. The clip player is dropped here (the descent already is the
+clip), and the service pages do not exist inside a single file, so their links
+point at the on-page catalog instead.

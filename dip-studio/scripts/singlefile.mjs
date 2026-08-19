@@ -23,7 +23,6 @@ const MIME = {
   '.webp': 'image/webp',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
-  '.mp4': 'video/mp4',
 };
 
 /** One width per image keeps the file small; AVIF everywhere it exists. */
@@ -84,8 +83,24 @@ async function main() {
       return wanted ? block : '';
     });
 
-  // The hero clip travels inline too — the single file has no /media to fetch.
-  const clipUri = await dataUri('hero-clip.mp4');
+  // The whole frame ladder travels inline. The shareable build scrubs the same
+  // frame sequence the site does; seeking an inlined video under scroll snaps
+  // to keyframes, which reads as jumping between scenes.
+  const framesManifest = JSON.parse(await readFile(join(mediaDir, 'frames', 'frames.json'), 'utf8'));
+  const ladder = framesManifest.ladders.find((l) => l.dir === 'md') ?? framesManifest.ladders[0];
+
+  const frameUris = [];
+  for (let i = 0; i < framesManifest.count; i++) {
+    const name = `${String(i).padStart(4, '0')}.avif`;
+    const buf = await readFile(join(mediaDir, 'frames', ladder.dir, name));
+    frameUris.push(`data:image/avif;base64,${buf.toString('base64')}`);
+  }
+
+  const embeddedFrames = {
+    // One ladder only: a second pass would re-decode the same data URIs.
+    manifest: { ...framesManifest, ladders: [{ ...ladder, webp: false }] },
+    urls: frameUris,
+  };
 
   let out = html;
 
@@ -129,8 +144,8 @@ async function main() {
   const mediaMap = `<script>window.__DIP_MEDIA__ = ${JSON.stringify(Object.fromEntries(uris))};</script>`;
   // The clip is inlined exactly once and read through a global, so the three
   // places that reference it do not each carry a copy.
-  const clipGlobal = `<script>window.__DIP_CLIP__ = ${JSON.stringify(clipUri)};</script>`;
-  const script = `${mediaMap}\n${clipGlobal}\n<script type="module">\n${inlineMedia(js)}\n</script>`;
+  const framesGlobal = `<script>window.__DIP_FRAMES__ = ${JSON.stringify(embeddedFrames)};</script>`;
+  const script = `${mediaMap}\n${framesGlobal}\n<script type="module">\n${inlineMedia(js)}\n</script>`;
   const single = `${title}\n${banner}\n${style}\n${ld}\n${bodyInner}\n${script}\n`;
 
   await writeFile(OUT, single, 'utf8');

@@ -13,6 +13,12 @@ export interface HeroSource {
   readonly size: THREE.Vector2;
   /** Called every frame with 0–1 progress; image sources ignore it. */
   update(progress: number): void;
+  /**
+   * Resolves once enough of the sequence is decoded to scrub the opening
+   * without gaps. The hero waits on this before revealing itself, so the
+   * descent never starts on frames that have not arrived.
+   */
+  readonly ready?: Promise<void>;
   dispose(): void;
 }
 
@@ -92,6 +98,23 @@ export async function createVideoSource(url: string, fps = 24): Promise<HeroSour
  * scroll path and nothing ever seeks.
  */
 
+/**
+ * The single-file build has no /media to fetch from, so it embeds the whole
+ * ladder as data URIs and hands it over on the window. Same scrubbing path as
+ * the site — seeking a video under scroll is what made the shared preview jump
+ * between keyframes.
+ */
+export interface EmbeddedFrames {
+  manifest: FrameManifest;
+  urls: string[];
+}
+
+declare global {
+  interface Window {
+    __DIP_FRAMES__?: EmbeddedFrames;
+  }
+}
+
 export interface FrameManifest {
   count: number;
   stride: number;
@@ -152,9 +175,16 @@ async function buildFrameSequenceSource(
   manifestUrl: string,
   onProgress?: (loaded: number, total: number) => void,
 ): Promise<HeroSource> {
-  const response = await fetch(manifestUrl);
-  if (!response.ok) throw new Error(`Frame manifest missing: ${manifestUrl}`);
-  const manifest = (await response.json()) as FrameManifest;
+  const embedded = window.__DIP_FRAMES__;
+
+  let manifest: FrameManifest;
+  if (embedded) {
+    manifest = embedded.manifest;
+  } else {
+    const response = await fetch(manifestUrl);
+    if (!response.ok) throw new Error(`Frame manifest missing: ${manifestUrl}`);
+    manifest = (await response.json()) as FrameManifest;
+  }
 
   const base = manifestUrl.replace(/frames\.json$/, '');
   const ext = (await supportsAvif()) ? 'avif' : 'webp';
@@ -164,7 +194,8 @@ async function buildFrameSequenceSource(
   // frame is a texture upload, and upload cost scales with pixels.
   const lowTier =
     window.matchMedia('(max-width: 900px)').matches || navigator.hardwareConcurrency <= 4;
-  const width = Math.min(large?.width ?? 1280, lowTier ? 960 : 1600);
+  const sourceWidth = large?.width ?? small?.width ?? 1280;
+  const width = Math.min(sourceWidth, lowTier ? 960 : 1600);
   const height = Math.round(width / manifest.aspect);
 
   const canvas = document.createElement('canvas');
@@ -191,7 +222,9 @@ async function buildFrameSequenceSource(
   let playhead = 0;
 
   const frameUrl = (dir: string, index: number): string =>
-    `${base}${dir}/${String(index).padStart(4, '0')}.${ext}`;
+    embedded
+      ? embedded.urls[index]
+      : `${base}${dir}/${String(index).padStart(4, '0')}.${ext}`;
 
   const load = (url: string): Promise<HTMLImageElement> =>
     new Promise((resolve, reject) => {
@@ -214,6 +247,21 @@ async function buildFrameSequenceSource(
   ready = 1;
 
   /**
+   * How much of the descent must be decoded before the hero is shown. Enough
+   * that an immediate scroll runs on real frames rather than held ones.
+   */
+  const PRELOAD_COUNT = Math.min(manifest.count, Math.round(manifest.count * 0.45));
+  let markReady: () => void = () => {};
+  const readyPromise = new Promise<void>((resolve) => {
+    markReady = resolve;
+  });
+  const checkReady = (): void => {
+    let contiguous = 0;
+    while (contiguous < manifest.count && frames[contiguous]) contiguous += 1;
+    if (contiguous >= PRELOAD_COUNT) markReady();
+  };
+
+  /**
    * Coarse to fine: every 8th frame, then 4th, 2nd, then the rest — so the
    * whole timeline is covered early, at low temporal resolution, and fills in
    * from there.
@@ -227,7 +275,10 @@ async function buildFrameSequenceSource(
       const img = await load(frameUrl(dir, i));
       frames[i] = img;
       tiers[i] = tier;
-      if (tier === 'sm') onProgress?.(++ready, manifest.count);
+      if (tier === 'sm') {
+        onProgress?.(++ready, PRELOAD_COUNT);
+        checkReady();
+      }
       // Force a redraw when the frame on screen just improved.
       if (Math.abs(lastExact - i) < 1.5) lastExact = -1;
     } catch {
@@ -251,6 +302,11 @@ async function buildFrameSequenceSource(
   };
 
   const loadLadder = async (dir: string, tier: Tier): Promise<void> => {
+    if (tier === 'sm') {
+      // Frame by frame from the top: the opening of the descent has to be
+      // gapless before anything is shown.
+      for (let i = 0; i < PRELOAD_COUNT; i++) await fetchFrame(dir, tier, i);
+    }
     await loadAroundPlayhead(dir, tier);
     for (const stride of STRIDES) {
       for (let i = 0; i < manifest.count; i += stride) {
@@ -287,6 +343,7 @@ async function buildFrameSequenceSource(
   return {
     texture,
     size: new THREE.Vector2(width, height),
+    ready: readyPromise,
 
     update(progress: number) {
       if (!ctx) return;
