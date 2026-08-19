@@ -21,4 +21,11 @@ export const clipUrl = (): string => window.__DIP_CLIP__ ?? '/media/hero-clip.mp
  */
 export const hasClip = (): boolean => Boolean(window.__DIP_CLIP__) || !window.__DIP_FRAMES__;
 
+/**
+ * True in the shareable single-file build, which carries its media inline.
+ * Used to phrase the booking form for someone being shown the site rather
+ * than someone trying to reach DIP Studio.
+ */
+export const isSharedPreview = (): boolean => Boolean(window.__DIP_FRAMES__);
+
 export const CLIP_POSTER = '/media/clip-poster.jpg';

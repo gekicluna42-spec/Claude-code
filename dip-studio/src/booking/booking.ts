@@ -8,6 +8,7 @@
 
 import { services } from '../data/services';
 import { site, has } from '../data/site.config';
+import { isSharedPreview } from '../data/clip';
 import { esc, qs } from '../lib/dom';
 import { createModal } from '../lib/modal';
 import { getSelection } from '../sections/builder';
@@ -193,7 +194,15 @@ export function initBooking(): void {
       return;
     }
 
-    // Neither channel configured yet — say so instead of pretending it sent.
+    // Neither channel configured yet. In a shared preview that is expected —
+    // say what would happen instead of showing a client an error.
+    if (isSharedPreview()) {
+      status.dataset.tone = 'ok';
+      status.textContent =
+        'Ovo je prikaz stranice — upit se ne šalje. Na objavljenoj stranici ide direktno DIP Studiju.';
+      return;
+    }
+
     status.dataset.tone = 'error';
     status.textContent = 'Slanje upita trenutno nije dostupno. Molimo pokušajte ponovo kasnije.';
     console.warn(
