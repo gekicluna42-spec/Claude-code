@@ -40,9 +40,11 @@ const LADDERS = [
   // 1152 rather than 1280: twice the frames at a slightly smaller width costs
   // about 2 MB, and this frame sits behind text under grain and bloom.
   { width: 1152, dir: 'lg', quality: 46, webp: false },
-  // Only for the single-file build, which embeds every frame as a data URI:
-  // 768px keeps the whole descent inlineable inside the artifact size cap.
-  { width: 768, dir: 'md', quality: 44, webp: false },
+  // Only for the single-file build, which embeds every frame as a data URI.
+  // Spatial detail is traded away rather than frames: in a scrubbed sequence
+  // the temporal resolution is what reads as smooth, so all 240 frames stay
+  // and the width and quality drop instead.
+  { width: 560, dir: 'md', quality: 34, webp: false },
 ];
 
 async function ffmpegRun(args) {
@@ -59,6 +61,11 @@ async function bytesIn(dir) {
 }
 
 async function main() {
+  // `npm run frames -- --only=md` re-encodes a single ladder instead of all
+  // of them, which turns a ten-minute rebuild into about one.
+  const onlyArg = process.argv.find((a) => a.startsWith('--only='));
+  const only = onlyArg ? onlyArg.slice('--only='.length) : null;
+
   await rm(tmpDir, { recursive: true, force: true });
   await mkdir(tmpDir, { recursive: true });
   await mkdir(framesDir, { recursive: true });
@@ -79,6 +86,7 @@ async function main() {
 
   // 2. Encode both ladders, AVIF with a WebP fallback.
   for (const ladder of LADDERS) {
+    if (only && ladder.dir !== only) continue;
     const outDir = join(framesDir, ladder.dir);
     await rm(outDir, { recursive: true, force: true });
     await mkdir(outDir, { recursive: true });
@@ -93,6 +101,12 @@ async function main() {
       }
     }
     console.log(`${ladder.dir}: ${(await bytesIn(outDir) / 1024 / 1024).toFixed(2)} MB`);
+  }
+
+  if (only) {
+    await rm(tmpDir, { recursive: true, force: true });
+    console.log(`only "${only}" rebuilt — manifest and posters left untouched`);
+    return;
   }
 
   // 3. Posters: the opening frame (hero fallback, LCP) and the payoff frame.

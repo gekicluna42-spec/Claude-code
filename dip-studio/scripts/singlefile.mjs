@@ -27,10 +27,12 @@ const MIME = {
 
 /** One width per image keeps the file small; AVIF everywhere it exists. */
 const pick = (base) => {
-  if (base === 'hero-master') return `${base}-1600.avif`;
+  if (base === 'hero-master') return `${base}-1024.avif`;
   // Posters are emitted without a width suffix.
   if (base.startsWith('clip-')) return `${base}.avif`;
-  return `${base}-800.avif`;
+  // 480 rather than 800: every card image is inlined, and the shared preview
+  // has to stay small enough to pass claude.ai's public-sharing limit.
+  return `${base}-480.avif`;
 };
 
 async function dataUri(fileName) {
