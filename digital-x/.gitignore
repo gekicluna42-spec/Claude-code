@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-preview/
+preview/
+.frames-tmp/
+qa-shots/

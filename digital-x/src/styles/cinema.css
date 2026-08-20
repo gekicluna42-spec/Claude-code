@@ -1,0 +1,310 @@
+/**
+ * The four film chapters, the boot curtain and the navigation that floats over
+ * them.
+ *
+ * Each chapter is a tall section with a sticky 100vh stage. Sticky rather than
+ * a GSAP pin: the layout never gets a pin-spacer inserted into it, so section
+ * heights stay exactly what the chapter definitions say they are and anchor
+ * links land where they should.
+ */
+
+/* ---- Boot curtain ------------------------------------------------------- */
+
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.25rem;
+  background: var(--ink);
+  transition: opacity 0.8s var(--ease), visibility 0.8s;
+}
+html.is-ready .boot { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.boot__x {
+  width: clamp(2.5rem, 6vw, 4rem);
+  height: clamp(2.5rem, 6vw, 4rem);
+  color: var(--cyan);
+  animation: boot-pulse 2.4s var(--ease) infinite;
+}
+@keyframes boot-pulse {
+  0%, 100% { opacity: 0.35; transform: rotate(0deg) scale(0.96); }
+  50% { opacity: 1; transform: rotate(90deg) scale(1); }
+}
+
+.boot__label {
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.boot__bar { width: min(18rem, 60vw); height: 1px; background: var(--edge-1); overflow: hidden; }
+.boot__bar i { display: block; height: 100%; width: 0%; background: var(--cyan); transition: width 0.2s linear; }
+.boot__pct { font: 500 var(--t-small)/1 var(--mono); color: var(--ivory); }
+.boot__skip {
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-1);
+  border-bottom: 1px solid var(--edge-1);
+  padding-bottom: 2px;
+}
+.boot__skip:hover { color: var(--cyan); }
+
+@media (prefers-reduced-motion: reduce) {
+  .boot { display: none; }
+  .boot__x { animation: none; }
+}
+
+/* ---- Navigation --------------------------------------------------------- */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: 1rem var(--pad);
+  transition: background 0.4s var(--ease), border-color 0.4s var(--ease), padding 0.4s var(--ease);
+  border-bottom: 1px solid transparent;
+}
+.nav.is-stuck {
+  background: rgba(7, 7, 8, 0.72);
+  backdrop-filter: blur(20px) saturate(120%);
+  border-bottom-color: var(--edge);
+  padding-block: 0.7rem;
+}
+
+.nav__brand { display: flex; align-items: center; gap: 0.6rem; }
+.nav__x { width: 1.15rem; height: 1.15rem; color: var(--cyan); }
+.nav__word {
+  font: 700 0.95rem/1 var(--sans);
+  font-variation-settings: 'wdth' 88, 'wght' 700;
+  letter-spacing: 0.16em;
+}
+.nav__word em { font-style: normal; color: var(--cyan); }
+
+.nav__links { display: flex; gap: clamp(0.9rem, 2vw, 2rem); margin-left: auto; }
+.nav__links a {
+  position: relative;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-block: 0.4rem;
+  transition: color 0.25s var(--ease);
+}
+.nav__links a::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100%; height: 1px;
+  background: var(--cyan);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.35s var(--ease);
+}
+.nav__links a:hover { color: var(--ivory); }
+.nav__links a:hover::after { transform: scaleX(1); transform-origin: left; }
+
+.nav__toggle { display: none; width: 2.5rem; height: 2.5rem; position: relative; margin-left: auto; }
+.nav__toggle span[aria-hidden] {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, transparent 46%, currentColor 46% 54%, transparent 54%) center / 60% 100% no-repeat,
+    linear-gradient(to bottom, transparent 46%, currentColor 46% 54%, transparent 54%) center / 60% 100% no-repeat;
+  transition: transform 0.3s var(--ease);
+}
+.nav__toggle span[aria-hidden]::before,
+.nav__toggle span[aria-hidden]::after {
+  content: '';
+  position: absolute;
+  left: 20%; right: 20%;
+  height: 1px;
+  background: currentColor;
+  transition: transform 0.3s var(--ease), opacity 0.2s;
+}
+.nav__toggle span[aria-hidden]::before { top: 38%; }
+.nav__toggle span[aria-hidden]::after { top: 62%; }
+/* Open state folds the two rules into the X. */
+.nav__toggle[aria-expanded='true'] span[aria-hidden]::before { transform: translateY(0.19rem) rotate(45deg); }
+.nav__toggle[aria-expanded='true'] span[aria-hidden]::after { transform: translateY(-0.19rem) rotate(-45deg); }
+
+.nav__sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 119;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  background: rgba(7, 7, 8, 0.96);
+  backdrop-filter: blur(24px);
+}
+.nav__sheet[hidden] { display: none; }
+.nav__sheet a {
+  font-size: clamp(1.5rem, 6vw, 2.4rem);
+  font-variation-settings: 'wdth' 90, 'wght' 600;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 860px) {
+  .nav__links, .nav__cta { display: none; }
+  .nav__toggle { display: block; }
+}
+
+/* ---- Chapters ----------------------------------------------------------- */
+
+.chapter {
+  position: relative;
+  /* Set from the chapter definitions so the ratio between chapters lives in
+     one place. THE REVEAL is by far the tallest. */
+  height: var(--chapter-scroll, 240vh);
+}
+
+.chapter__stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  background: var(--ink);
+}
+
+.chapter__poster,
+.chapter__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.chapter__poster img { width: 100%; height: 100%; object-fit: cover; }
+
+/* The canvas covers the poster the moment the first frame is painted. */
+.chapter__canvas { opacity: 0; transition: opacity 0.5s var(--ease); }
+html.is-ready .chapter__canvas { opacity: 1; }
+.chapter--still .chapter__canvas { display: none; }
+
+/* Grade: a touch of lift in the shadows and a cool bias, matching the films
+   rather than fighting them. */
+.chapter__grade {
+  position: absolute;
+  inset: 0;
+  background:
+    /* A scrim down the reading edge. The copy sits left on every chapter, and
+       the films are busiest exactly there on two of the four. */
+    linear-gradient(to right, rgba(7, 7, 8, 0.82) 0%, rgba(7, 7, 8, 0.45) 26%, transparent 52%),
+    radial-gradient(120% 90% at 50% 45%, transparent 40%, rgba(7, 7, 8, 0.55) 100%),
+    linear-gradient(to bottom, rgba(7, 7, 8, 0.7) 0%, transparent 22%, transparent 62%, rgba(7, 7, 8, 0.88) 100%);
+  pointer-events: none;
+}
+.chapter__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(78% 62% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+.chapter__inner {
+  position: relative;
+  height: 100%;
+  width: min(100% - var(--pad) * 2, var(--wrap));
+  margin-inline: auto;
+  display: grid;
+  align-content: center;
+  padding-block: 6rem 5rem;
+}
+
+.chapter__marker {
+  position: absolute;
+  top: 5.5rem;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted-1);
+}
+.chapter__x { width: 0.7rem; height: 0.7rem; color: var(--cyan); }
+.chapter__name { color: var(--muted-1); }
+.chapter__marker span + span::before { content: '·'; margin-inline: 0.5rem; color: var(--titanium-1); }
+
+/* Cues are stacked in the same grid cell and cross-faded by the director, so
+   the copy changes without the layout moving. */
+.chapter__cues { display: grid; }
+.cue {
+  grid-area: 1 / 1;
+  max-width: 34rem;
+  display: grid;
+  gap: 1rem;
+  opacity: 0;
+  transform: translateY(1.2rem);
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+  pointer-events: none;
+}
+.cue.is-on { opacity: 1; transform: none; }
+.cue__kicker {
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.cue__body { color: var(--ivory-dim); font-size: var(--t-lead); max-width: 28rem; }
+
+/* Reduced motion: every cue is shown, stacked normally, over the still. */
+.chapter--still { height: auto; }
+.chapter--still .chapter__stage { position: relative; height: auto; min-height: 70svh; }
+.chapter--still .chapter__cues { display: grid; gap: 2.5rem; }
+.chapter--still .cue { grid-area: auto; opacity: 1; transform: none; pointer-events: auto; }
+.chapter--still .chapter__inner { padding-block: 5rem; }
+
+.chapter__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+  pointer-events: auto;
+}
+#chapter-signal .chapter__hero-actions { position: relative; z-index: 2; }
+/* The hero actions belong to the first cue only; they fade with the chapter. */
+#chapter-signal.is-live .chapter__hero-actions { opacity: 1; }
+
+.chapter__scroll {
+  position: absolute;
+  bottom: 2.5rem;
+  left: 0;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--muted-1);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.chapter__scroll::after {
+  content: '';
+  width: 3.5rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--cyan), transparent);
+  animation: scroll-hint 2.6s var(--ease) infinite;
+  transform-origin: left;
+}
+@keyframes scroll-hint {
+  0%, 100% { transform: scaleX(0.35); opacity: 0.4; }
+  50% { transform: scaleX(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chapter__scroll::after { animation: none; }
+  .chapter__scroll { display: none; }
+}
+
+@media (max-width: 860px) {
+  .chapter__inner { padding-block: 5.5rem 4rem; align-content: end; }
+  .chapter__marker { top: 4.5rem; }
+  .cue { max-width: none; }
+}

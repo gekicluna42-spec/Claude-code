@@ -1,0 +1,77 @@
+{
+  "aspect": 1.7777777777777777,
+  "ladders": [
+    {
+      "dir": "sm",
+      "width": 640,
+      "webp": true,
+      "stride": 1
+    },
+    {
+      "dir": "lg",
+      "width": 1280,
+      "webp": false,
+      "stride": 1
+    },
+    {
+      "dir": "xs",
+      "width": 480,
+      "webp": false,
+      "stride": 2
+    }
+  ],
+  "chapters": [
+    {
+      "id": "signal",
+      "source": {
+        "frames": 192,
+        "fps": 24,
+        "duration": 8
+      },
+      "counts": {
+        "sm": 192,
+        "lg": 192,
+        "xs": 96
+      }
+    },
+    {
+      "id": "reveal",
+      "source": {
+        "frames": 192,
+        "fps": 24,
+        "duration": 8
+      },
+      "counts": {
+        "sm": 192,
+        "lg": 192,
+        "xs": 96
+      }
+    },
+    {
+      "id": "system",
+      "source": {
+        "frames": 192,
+        "fps": 24,
+        "duration": 8
+      },
+      "counts": {
+        "sm": 192,
+        "lg": 192,
+        "xs": 96
+      }
+    },
+    {
+      "id": "inside",
+      "source": {
+        "frames": 192,
+        "fps": 24,
+        "duration": 8
+      },
+      "counts": {
+        "sm": 192,
+        "lg": 192,
+        "xs": 96
+      }
+    }
+  ]
+}
