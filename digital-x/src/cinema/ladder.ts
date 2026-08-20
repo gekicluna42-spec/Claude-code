@@ -35,6 +35,19 @@ export function supportsAvif(): Promise<boolean> {
   return avifSupport;
 }
 
+/**
+ * Anything the player can draw from. Implemented by a single clip's ladder and
+ * by the reel that stitches four of them into one continuous film.
+ */
+export interface FrameSource {
+  readonly count: number;
+  readonly dir: string;
+  ensure(center: number, ahead?: number): void;
+  nearest(i: number): HTMLImageElement | null;
+  has(i: number): boolean;
+  dispose(): void;
+}
+
 export interface LadderOptions {
   chapterId: string;
   /** Ladder directory name from the manifest: 'sm' | 'lg' | 'xs'. */
@@ -45,9 +58,19 @@ export interface LadderOptions {
   base: string;
   /** Frames kept resident either side of the playhead. */
   window: number;
+  /**
+   * 'all' keeps every frame it has ever loaded.
+   *
+   * Worth it for the narrow ladder: the whole film is about 12 MB of encoded
+   * AVIF, the browser manages the decode cache itself, and holding it means
+   * scrolling back up through 1900vh never re-fetches a single frame. The wide
+   * ladder stays windowed, where the same retention would be 23 MB of much
+   * heavier decodes.
+   */
+  retain?: 'all' | 'window';
 }
 
-export class FrameLadder {
+export class FrameLadder implements FrameSource {
   private images = new Map<number, HTMLImageElement>();
   private pending = new Map<number, HTMLImageElement>();
   /** Frames that failed to load; never retried, so one 404 cannot loop. */
@@ -77,13 +100,15 @@ export class FrameLadder {
     return `${base}/media/frames/${dir}/${chapterId}/${String(i).padStart(4, '0')}.${ext}`;
   }
 
-  private request(i: number): void {
+  private request(i: number, priority: 'high' | 'low' = 'high'): void {
     if (this.images.has(i) || this.pending.has(i) || this.failed.has(i)) return;
     if (i < 0 || i >= this.options.count) return;
     const src = this.url(i);
     if (!src) return;
     const img = new Image();
     img.decoding = 'async';
+    // The background filler must never outrank the frames under the playhead.
+    (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = priority;
     this.pending.set(i, img);
     const settle = (ok: boolean) => {
       this.pending.delete(i);
@@ -113,11 +138,35 @@ export class FrameLadder {
       if (b >= lo) this.request(b);
     }
 
+    if (this.options.retain === 'all') return;
     if (this.images.size > (hi - lo) * 1.6 + 8) {
       for (const key of this.images.keys()) {
         if (key < lo || key > hi) this.images.delete(key);
       }
     }
+  }
+
+  /**
+   * Queues a stretch of frames at low priority. This is how the film is filled
+   * in behind the visitor while they watch the part that is already there.
+   */
+  prefetch(from: number, to: number): void {
+    for (let i = Math.max(0, from); i <= Math.min(this.options.count - 1, to); i++) {
+      this.request(i, 'low');
+    }
+  }
+
+  /** Frames still outstanding — the filler waits on this before moving on. */
+  get inflight(): number {
+    return this.pending.size;
+  }
+
+  /** True once every frame in the range is resident or known to be missing. */
+  settled(from = 0, to = this.options.count - 1): boolean {
+    for (let i = from; i <= to; i++) {
+      if (!this.images.has(i) && !this.failed.has(i)) return false;
+    }
+    return true;
   }
 
   /** Loads the whole ladder. Used for the opening chapter and nothing else. */

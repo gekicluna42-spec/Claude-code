@@ -12,8 +12,8 @@
  */
 
 import gsap from 'gsap';
-import { EXPLORER_RANGE } from '../cinema/chapters';
-import { ChapterPlayer } from '../cinema/ChapterPlayer';
+import { EXPLORER_RANGE } from '../cinema/timeline';
+import { FilmPlayer } from '../cinema/FilmPlayer';
 import { FrameLadder, chooseLadders } from '../cinema/ladder';
 import { loadManifest } from '../cinema/manifest';
 import { $, $$, prefersReducedMotion } from '../lib/dom';
@@ -103,7 +103,7 @@ export async function initExplorer(options: ExplorerOptions): Promise<void> {
       base: options.base,
       window: hi - lo + 2,
     });
-    const player = new ChapterPlayer({
+    const player = new FilmPlayer({
       canvas,
       ladder,
       maxDpr: options.tier === 'low' ? 1.5 : 2,

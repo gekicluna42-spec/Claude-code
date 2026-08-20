@@ -7,7 +7,7 @@
 import { CONTACT, DISCIPLINES, HERO, META, PRICING } from '../data/content';
 import { LIVE, ORIGIN, UNRESOLVED } from '../data/site.config';
 import { esc, join, map, xMark } from './html';
-import { renderChapters } from './chapters.html';
+import { renderFilm } from './film.html';
 import { partOne, partTwo } from './sections.html';
 
 const NAV = [
@@ -50,6 +50,14 @@ const boot = (): string => `
   <p class="boot__pct" data-boot-pct aria-live="polite">0%</p>
   <button class="boot__skip" type="button" data-boot-skip>Preskoči</button>
 </div>`;
+
+/**
+ * A hairline at the top of the viewport showing how much of the film has been
+ * fetched. It exists because the film is long and silent: without it, a slow
+ * connection is indistinguishable from a broken page.
+ */
+const buffer = (): string =>
+  `<div class="buffer" data-buffer aria-hidden="true"><i data-buffer-bar></i></div>`;
 
 const footer = (): string => {
   const legal = join([
@@ -170,10 +178,11 @@ export function renderPage(): { head: string; body: string } {
     body: join([
       `<a class="skip" href="#main">Preskoči na sadržaj</a>`,
       boot(),
+      buffer(),
       nav(),
       `<main id="main" data-main>`,
       `<div id="top"></div>`,
-      renderChapters(),
+      renderFilm(),
       partOne(),
       partTwo(),
       `</main>`,

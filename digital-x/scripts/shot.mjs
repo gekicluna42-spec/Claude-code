@@ -24,7 +24,7 @@ await new Promise((r) => setTimeout(r, 1200));
 
 for (const [i, y] of spots.entries()) {
   await page.evaluate((top) => window.scrollTo({ top, behavior: 'instant' }), y);
-  await new Promise((r) => setTimeout(r, 900));
+  await new Promise((r) => setTimeout(r, 1900));
   await page.screenshot({ path: `qa-shots/${process.env.TAG ?? 'desk'}-${String(i).padStart(2, '0')}-${y}.png` });
 }
 

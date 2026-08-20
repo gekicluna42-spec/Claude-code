@@ -156,16 +156,72 @@ html.is-ready .boot { opacity: 0; visibility: hidden; pointer-events: none; }
   .nav__toggle { display: block; }
 }
 
-/* ---- Chapters ----------------------------------------------------------- */
+/* ---- The content gate --------------------------------------------------- */
 
-.chapter {
-  position: relative;
-  /* Set from the chapter definitions so the ratio between chapters lives in
-     one place. THE REVEAL is by far the tallest. */
-  height: var(--chapter-scroll, 240vh);
+/*
+ * While `film-running` is on <html>, the page has nothing to say. The nav's
+ * links and call to action are content and are not offered; the brand mark
+ * stays so the visitor always knows whose film this is.
+ *
+ * `visibility: hidden` alongside the fade is deliberate. Opacity alone would
+ * leave the links in the tab order and in the accessibility tree — a keyboard
+ * or screen-reader visitor would be handed a menu that nobody can see, which
+ * is worse than the menu simply not being there yet. Discrete visibility
+ * transitions cleanly, so the fade still reads.
+ *
+ * No page content is hidden by this: the sections below are untouched and
+ * fully in the DOM, and every nav destination is mirrored in the footer.
+ */
+html.film-running .nav__links,
+html.film-running .nav__cta,
+html.film-running .nav__toggle {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.5s var(--ease), visibility 0.5s var(--ease);
+}
+html.film-running .nav { border-bottom-color: transparent; background: none; backdrop-filter: none; }
+html.film-running body { overflow-x: hidden; }
+
+.nav__links,
+.nav__cta,
+.nav__toggle {
+  visibility: visible;
+  transition: opacity 0.7s var(--ease) 0.2s, visibility 0.7s var(--ease) 0.2s;
 }
 
-.chapter__stage {
+/* The buffer hairline: how much of the film has arrived. */
+.buffer {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 130;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease);
+}
+html.film-running .buffer { opacity: 1; }
+.buffer i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(to right, transparent, var(--cyan));
+  transition: width 0.6s linear;
+}
+
+/* ---- The film ----------------------------------------------------------- */
+
+.film {
+  position: relative;
+  /*
+   * Set from timeline.ts. Long on purpose: roughly 2.2vh of scroll per frame
+   * across 768 frames, which is about half the speed of a conventional
+   * scroll-scrub, plus 133vh of pure hold at the peak of the detonation.
+   */
+  height: var(--film-scroll, 1900vh);
+}
+
+.film__stage {
   position: sticky;
   top: 0;
   height: 100svh;
@@ -173,138 +229,252 @@ html.is-ready .boot { opacity: 0; visibility: hidden; pointer-events: none; }
   background: var(--ink);
 }
 
-.chapter__poster,
-.chapter__canvas {
+.film__poster,
+.film__canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-.chapter__poster img { width: 100%; height: 100%; object-fit: cover; }
+.film__poster img { width: 100%; height: 100%; object-fit: cover; }
+.film__canvas { opacity: 0; transition: opacity 0.6s var(--ease); }
+html.is-ready .film__canvas { opacity: 1; }
 
-/* The canvas covers the poster the moment the first frame is painted. */
-.chapter__canvas { opacity: 0; transition: opacity 0.5s var(--ease); }
-html.is-ready .chapter__canvas { opacity: 1; }
-.chapter--still .chapter__canvas { display: none; }
-
-/* Grade: a touch of lift in the shadows and a cool bias, matching the films
-   rather than fighting them. */
-.chapter__grade {
+.film__grade {
   position: absolute;
   inset: 0;
-  background:
-    /* A scrim down the reading edge. The copy sits left on every chapter, and
-       the films are busiest exactly there on two of the four. */
-    linear-gradient(to right, rgba(7, 7, 8, 0.82) 0%, rgba(7, 7, 8, 0.45) 26%, transparent 52%),
-    radial-gradient(120% 90% at 50% 45%, transparent 40%, rgba(7, 7, 8, 0.55) 100%),
-    linear-gradient(to bottom, rgba(7, 7, 8, 0.7) 0%, transparent 22%, transparent 62%, rgba(7, 7, 8, 0.88) 100%);
   pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 42%, rgba(7, 7, 8, 0.5) 100%),
+    linear-gradient(to bottom, rgba(7, 7, 8, 0.55) 0%, transparent 18%, transparent 68%, rgba(7, 7, 8, 0.8) 100%);
 }
-.chapter__vignette {
+.film__vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(78% 62% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
   pointer-events: none;
   mix-blend-mode: multiply;
+  background: radial-gradient(78% 62% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
 }
-
-.chapter__inner {
-  position: relative;
-  height: 100%;
-  width: min(100% - var(--pad) * 2, var(--wrap));
-  margin-inline: auto;
-  display: grid;
-  align-content: center;
-  padding-block: 6rem 5rem;
-}
-
-.chapter__marker {
+/*
+ * A reading scrim, but only once there is something to read. During the film
+ * the picture is the whole frame and nothing dims it.
+ *
+ * ::after is the last child in paint order, so without an explicit stack the
+ * scrim lands on top of the hero it exists to support — which reads as the
+ * whole title being stuck at half opacity.
+ */
+.film__stage::after {
+  content: '';
   position: absolute;
-  top: 5.5rem;
-  left: 0;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    linear-gradient(to right, rgba(7, 7, 8, 0.93) 0%, rgba(7, 7, 8, 0.78) 34%, rgba(7, 7, 8, 0.22) 66%, transparent 88%),
+    linear-gradient(to bottom, transparent 30%, rgba(7, 7, 8, 0.55) 100%);
+  transition: opacity 1s var(--ease);
+}
+.film.is-over .film__stage::after { opacity: 1; }
+
+/* ---- HUD: a marker, a rail, a way out ----------------------------------- */
+
+.film__hud {
+  position: absolute;
+  z-index: 2;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: 2.25rem;
+  display: grid;
+  gap: 0.85rem;
+  pointer-events: none;
+}
+.film__marks { position: relative; height: 1em; }
+.film__mark {
+  position: absolute;
+  inset: 0 auto 0 0;
   display: flex;
   align-items: center;
   gap: 0.6rem;
   font: 500 var(--t-micro)/1 var(--mono);
-  letter-spacing: 0.24em;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--muted-1);
-}
-.chapter__x { width: 0.7rem; height: 0.7rem; color: var(--cyan); }
-.chapter__name { color: var(--muted-1); }
-.chapter__marker span + span::before { content: '·'; margin-inline: 0.5rem; color: var(--titanium-1); }
-
-/* Cues are stacked in the same grid cell and cross-faded by the director, so
-   the copy changes without the layout moving. */
-.chapter__cues { display: grid; }
-.cue {
-  grid-area: 1 / 1;
-  max-width: 34rem;
-  display: grid;
-  gap: 1rem;
   opacity: 0;
-  transform: translateY(1.2rem);
-  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
-  pointer-events: none;
+  transform: translateY(0.4rem);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  white-space: nowrap;
 }
-.cue.is-on { opacity: 1; transform: none; }
-.cue__kicker {
+.film__mark.is-on { opacity: 1; transform: none; }
+.film__mark em {
+  font-style: normal;
+  color: var(--cyan);
+  letter-spacing: 0.1em;
+}
+.film__rail { height: 1px; background: var(--edge); overflow: hidden; }
+.film__rail i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(to right, var(--cyan-deep), var(--cyan));
+  transform-origin: left;
+  transform: scaleX(0);
+}
+.film.is-over .film__hud { opacity: 0; transition: opacity 0.8s var(--ease); }
+
+.film__scroll {
+  position: absolute;
+  z-index: 2;
+  left: var(--pad);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   font: 500 var(--t-micro)/1 var(--mono);
-  letter-spacing: 0.24em;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: opacity 0.6s var(--ease);
+}
+.film__scroll::after {
+  content: '';
+  width: 4rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--cyan), transparent);
+  transform-origin: left;
+  animation: film-hint 2.8s var(--ease) infinite;
+}
+@keyframes film-hint {
+  0%, 100% { transform: scaleX(0.3); opacity: 0.35; }
+  50% { transform: scaleX(1); opacity: 1; }
+}
+/* The hint has done its job the moment the film actually moves. */
+.film.has-moved .film__scroll,
+.film.is-over .film__scroll { opacity: 0; }
+
+.film__skip {
+  position: absolute;
+  z-index: 2;
+  right: var(--pad);
+  bottom: 2rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-1);
+  border-bottom: 1px solid var(--edge-1);
+  padding-bottom: 3px;
+  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), opacity 0.6s var(--ease);
+}
+.film__skip:hover { color: var(--cyan); border-color: var(--cyan); }
+.film.is-over .film__skip { opacity: 0; pointer-events: none; }
+
+/* ---- The hero, which arrives only when the film is finished -------------- */
+
+.film__hero {
+  position: absolute;
+  z-index: 3;
+  left: 0; right: 0;
+  bottom: 0;
+  width: min(100% - var(--pad) * 2, var(--wrap));
+  margin-inline: auto;
+  padding-block: 0 clamp(3rem, 9vh, 6rem);
+  display: grid;
+  gap: 1.1rem;
+  justify-items: start;
+  opacity: 0;
+  transform: translateY(2rem);
+  pointer-events: none;
+  transition: opacity 1.1s var(--ease), transform 1.1s var(--ease);
+}
+.film.is-over .film__hero { opacity: 1; transform: none; pointer-events: auto; }
+
+.film__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: var(--cyan);
 }
-.cue__body { color: var(--ivory-dim); font-size: var(--t-lead); max-width: 28rem; }
+.film__eyebrow-x { width: 0.7rem; height: 0.7rem; flex: none; }
+.film__title { font-size: var(--t-display); max-width: 14ch; }
+.film__lede { font-size: var(--t-lead); color: var(--ivory-dim); }
+.film__support { color: var(--muted); max-width: 34rem; }
+.film__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 0.75rem; }
 
-/* Reduced motion: every cue is shown, stacked normally, over the still. */
-.chapter--still { height: auto; }
-.chapter--still .chapter__stage { position: relative; height: auto; min-height: 70svh; }
-.chapter--still .chapter__cues { display: grid; gap: 2.5rem; }
-.chapter--still .cue { grid-area: auto; opacity: 1; transform: none; pointer-events: auto; }
-.chapter--still .chapter__inner { padding-block: 5rem; }
-
-.chapter__hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 2.25rem;
-  pointer-events: auto;
+/* Each line of the title rises on its own beat once the film resolves. */
+.film__hero .line > span {
+  transform: translateY(110%);
+  transition: transform 1s var(--ease);
 }
-#chapter-signal .chapter__hero-actions { position: relative; z-index: 2; }
-/* The hero actions belong to the first cue only; they fade with the chapter. */
-#chapter-signal.is-live .chapter__hero-actions { opacity: 1; }
+.film.is-over .film__hero .line > span { transform: none; }
+.film.is-over .film__hero .line:nth-child(2) > span { transition-delay: 0.09s; }
+.film.is-over .film__hero .line:nth-child(3) > span { transition-delay: 0.18s; }
 
-.chapter__scroll {
+/* ---- Filmstrip: the reduced-motion and no-JavaScript path ---------------- */
+
+.film__strip { display: none; }
+.strip { display: grid; gap: 1px; background: var(--edge); }
+@media (min-width: 720px) { .strip { grid-template-columns: repeat(2, 1fr); } }
+.strip__shot { position: relative; background: var(--ink); }
+.strip__poster img { width: 100%; height: auto; display: block; }
+.strip__label {
   position: absolute;
-  bottom: 2.5rem;
-  left: 0;
-  font: 500 var(--t-micro)/1 var(--mono);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--muted-1);
+  left: 1rem; bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ivory-dim);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.9);
 }
-.chapter__scroll::after {
-  content: '';
-  width: 3.5rem;
-  height: 1px;
-  background: linear-gradient(to right, var(--cyan), transparent);
-  animation: scroll-hint 2.6s var(--ease) infinite;
-  transform-origin: left;
+.strip__label span { color: var(--cyan); }
+
+/*
+ * Reduced motion: no pin, no scrub, no 1900vh of scroll. The film becomes the
+ * four stills, and the hero is simply there — gating content behind a film
+ * that is never going to play would leave the page empty.
+ */
+.film--still { height: auto; }
+.film--still .film__stage {
+  position: relative;
+  height: auto;
+  min-height: 78svh;
+  display: grid;
 }
-@keyframes scroll-hint {
-  0%, 100% { transform: scaleX(0.35); opacity: 0.4; }
-  50% { transform: scaleX(1); opacity: 1; }
+.film--still .film__canvas,
+.film--still .film__hud,
+.film--still .film__scroll,
+.film--still .film__skip { display: none; }
+.film--still .film__stage::after { opacity: 1; }
+.film--still .film__hero {
+  position: relative;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+  align-self: end;
+  padding-block: clamp(4rem, 12vh, 8rem) clamp(3rem, 9vh, 6rem);
 }
+.film--still .film__hero .line > span { transform: none; }
+.film--still .film__strip { display: block; }
+
 @media (prefers-reduced-motion: reduce) {
-  .chapter__scroll::after { animation: none; }
-  .chapter__scroll { display: none; }
+  .film__scroll::after { animation: none; }
+  .film__scroll { display: none; }
 }
 
 @media (max-width: 860px) {
-  .chapter__inner { padding-block: 5.5rem 4rem; align-content: end; }
-  .chapter__marker { top: 4.5rem; }
-  .cue { max-width: none; }
+  .film__hero {
+    max-width: none;
+    padding-bottom: clamp(2.5rem, 8vh, 4rem);
+  }
+  .film__hud { bottom: 1.5rem; }
+  .film__scroll { top: auto; bottom: 5.5rem; transform: none; }
+  .film__skip { bottom: 1.25rem; }
+  .film__stage::after {
+    background: linear-gradient(to bottom, transparent 20%, rgba(7, 7, 8, 0.55) 52%, rgba(7, 7, 8, 0.92) 100%);
+  }
 }

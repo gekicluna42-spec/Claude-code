@@ -58,6 +58,24 @@ function bootUi(): void {
   });
 }
 
+/**
+ * A safety valve. The film gates every heading, link and CTA on the page, so if
+ * the reel never reaches its final frame — a failed fetch, an unsupported
+ * codec — the visitor would be left with a picture and no way out. If the gate
+ * is still up well after boot and the visitor has scrolled past the film,
+ * lift it.
+ */
+function watchGate(): void {
+  const film = $('[data-film]');
+  if (!film) return;
+  window.setInterval(() => {
+    if (!document.documentElement.classList.contains('film-running')) return;
+    const past = window.scrollY > film.offsetTop + film.offsetHeight - window.innerHeight * 1.2;
+    if (past) document.documentElement.classList.remove('film-running');
+  }, 1000);
+}
+
+/** The curtain's counter: the opening clip, which really is blocking. */
 function onBootProgress(ratio: number): void {
   const bar = $('[data-boot-bar]');
   const pct = $('[data-boot-pct]');
@@ -66,8 +84,19 @@ function onBootProgress(ratio: number): void {
   if (pct) pct.textContent = `${value}%`;
 }
 
+/**
+ * The hairline at the top of the viewport: how much of the rest of the film has
+ * arrived. The film is long and has no copy on it, so without this a slow
+ * connection looks the same as a broken page.
+ */
+function onBufferProgress(ratio: number): void {
+  const bar = $('[data-buffer-bar]');
+  if (bar) bar.style.width = `${Math.min(100, Math.round(ratio * 100))}%`;
+}
+
 async function main(): Promise<void> {
   bootUi();
+  watchGate();
   markReveals();
 
   const lenis = startLenis();
@@ -85,12 +114,14 @@ async function main(): Promise<void> {
     tier,
     reducedMotion: reduced,
     onBootProgress,
+    onBufferProgress,
   });
 
   // Exposed for the QA harness, which asserts on real painted frame indices
   // rather than on scroll position.
   (window as unknown as { __dx?: unknown }).__dx = {
     state: () => director.state,
+    segments: () => director.segmentStarts(),
     reduced,
     tier,
   };
@@ -101,7 +132,10 @@ async function main(): Promise<void> {
     // A failed film must never take the page with it. Reveal the content and
     // leave the posters in place.
     console.warn('[digital-x] cinematic layer unavailable:', error);
+    // Never let a failed film hold the page hostage: drop the gate so the
+    // content below is reachable, and leave the posters in place.
     document.documentElement.classList.add('is-ready');
+    document.documentElement.classList.remove('film-running');
   }
 
   void initExplorer({ base: BASE, tier });

@@ -84,15 +84,14 @@ async function scrollTo(page, top) {
   let stable = 0;
   for (let i = 0; i < 40; i++) {
     await sleep(90);
-    const now = JSON.stringify((await stateOf(page)).map((c) => c.frame));
+    const now = String((await stateOf(page))?.frame ?? '');
     stable = now === previous ? stable + 1 : 0;
     previous = now;
     if (stable >= 3) return;
   }
 }
 
-const stateOf = (page) => page.evaluate(() => window.__dx?.state?.() ?? []);
-const frameOf = (state, id) => state.find((c) => c.id === id)?.frame ?? -1;
+const stateOf = (page) => page.evaluate(() => window.__dx?.state?.() ?? null);
 
 async function openPage(browser, viewport, { reducedMotion = false } = {}) {
   const page = await browser.newPage();
@@ -121,86 +120,146 @@ async function openPage(browser, viewport, { reducedMotion = false } = {}) {
   return { page, errors };
 }
 
-/* ---- 1-2. The four scrubs, and THE REVEAL's length and hold ------------- */
+/* ---- 1. The film: one continuous reel ----------------------------------- */
 
-async function checkChapters(page, viewport) {
-  const geometry = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('[data-chapter]')).map((el) => ({
-      id: el.dataset.chapter,
-      top: el.offsetTop,
-      height: el.offsetHeight,
-    })),
-  );
-  check('four chapters present', geometry.length === 4, `found ${geometry.length}`);
+async function checkFilm(page, viewport) {
+  const geometry = await page.evaluate(() => {
+    const film = document.querySelector('[data-film]');
+    if (!film) return null;
+    return { top: film.offsetTop, height: film.offsetHeight };
+  });
+  check('the film is a single section', Boolean(geometry));
+  if (!geometry) return;
 
-  const reveal = geometry.find((g) => g.id === 'reveal');
-  const others = geometry.filter((g) => g.id !== 'reveal');
-  check(
-    'THE REVEAL has the longest scroll run',
-    reveal && others.every((o) => reveal.height > o.height),
-    geometry.map((g) => `${g.id}:${g.height}`).join(' '),
-  );
+  check('there is exactly one film canvas',
+    (await page.$$('[data-film] canvas')).length === 1);
 
-  /**
-   * Scroll to a given *trigger* progress inside a chapter.
-   *
-   * The chapter's ScrollTrigger runs 'top top' → 'bottom bottom', so progress 1
-   * is reached one viewport before the section ends. Scrolling to a plain
-   * fraction of the section height overshoots, which is exactly how a hold band
-   * gets missed.
-   */
-  const seek = async (chapter, progress) => {
-    const span = chapter.height - viewport.height;
-    await scrollTo(page, Math.round(chapter.top + span * progress));
-    return frameOf(await stateOf(page), chapter.id);
+  const span = geometry.height - viewport.height;
+  /** Scroll to a given progress through the film. */
+  const seek = async (progress) => {
+    await scrollTo(page, Math.round(geometry.top + span * progress));
+    return stateOf(page);
   };
 
-  for (const chapter of geometry) {
-    const at = (progress) => seek(chapter, progress);
-    const a = await at(0.05);
-    const b = await at(0.35);
-    const c = await at(0.95);
-    const back = await at(0.35);
+  const total = (await stateOf(page))?.frames ?? 0;
+  check('the reel spans all four clips', total >= 380, `${total} frames`);
 
-    check(
-      `${chapter.id}: scrub advances with scroll`,
-      a >= 0 && b > a && c > b,
-      `frames ${a} → ${b} → ${c}`,
-    );
-    check(`${chapter.id}: scrub reverses on scroll up`, Math.abs(back - b) <= 6, `${c} → ${back} (want ≈${b})`);
-  }
+  // The film is deliberately long. Assert that, rather than letting a future
+  // "tidy up" quietly halve it.
+  check('the film is a long, slow run',
+    geometry.height >= viewport.height * (viewport.width <= 860 ? 10 : 16),
+    `${Math.round(geometry.height / viewport.height)} viewports`);
 
-  // The ladder upgrade. A broken AVIF feature-probe once pinned every visitor
-  // to the fallback ladder without failing a single other check, so assert the
-  // desktop actually reaches the wide one.
-  // The single-file preview ships one ladder on purpose, so only assert this
-  // where a wider one exists to upgrade to.
+  const a = (await seek(0.03)).frame;
+  const b = (await seek(0.2)).frame;
+  const c = (await seek(0.7)).frame;
+  const d = (await seek(0.96)).frame;
+  const back = (await seek(0.2)).frame;
+
+  check('the film scrubs forward across its whole length',
+    a >= 0 && b > a && c > b && d > c, `frames ${a} → ${b} → ${c} → ${d}`);
+  check('the film scrubs in reverse', Math.abs(back - b) <= 4, `${d} → ${back} (want ≈${b})`);
+  check('the film reaches its final frame', d >= total - 6, `${d} of ${total - 1}`);
+
+  // The hold. Film time stops between 0.36 and 0.43 while scroll continues.
+  const beforeHold = (await seek(0.30)).frame;
+  const holdStart = (await seek(0.365)).frame;
+  const holdMid = (await seek(0.40)).frame;
+  const holdEnd = (await seek(0.428)).frame;
+  const afterHold = (await seek(0.50)).frame;
+  check('the detonation reaches its peak', holdStart > beforeHold + 4, `${beforeHold} → ${holdStart}`);
+  check('the peak HOLDS while scroll continues',
+    Math.abs(holdMid - holdStart) <= 2 && Math.abs(holdEnd - holdStart) <= 2,
+    `frames ${holdStart} / ${holdMid} / ${holdEnd}`);
+  check('the reversal resumes after the hold', afterHold > holdEnd + 4, `${holdEnd} → ${afterHold}`);
+
+  // The single-file preview ships one ladder on purpose, so only assert the
+  // upgrade where a wider one exists to upgrade to.
   const ladders = await page.evaluate(() =>
     (window.__DX_FRAMES__?.ladders ?? []).map((l) => l.dir));
-  if (!ladders.length || ladders.includes('lg')) {
-    const upgraded = await page.evaluate(() =>
-      (window.__dx?.state?.() ?? []).some((c) => c.ladder === 'lg'));
-    check('desktop upgrades to the wide frame ladder', upgraded);
+  if (!viewport.mobile && (!ladders.length || ladders.includes('lg'))) {
+    await seek(0.5);
+    check('the film upgrades to the wide frame ladder',
+      (await stateOf(page))?.ladder === 'lg', String((await stateOf(page))?.ladder));
   }
 
-  // The hold: film time must stop while scroll continues. The curve freezes
-  // between 0.42 and 0.58 of THE REVEAL.
-  if (reveal) {
-    const at = (progress) => seek(reveal, progress);
-    const before = await at(0.30);
-    const holdStart = await at(0.44);
-    const holdMid = await at(0.5);
-    const holdEnd = await at(0.56);
-    const after = await at(0.75);
-    check('THE REVEAL reaches the peak before the hold', holdStart > before + 4,
-      `${before} → ${holdStart}`);
-    check(
-      'THE REVEAL holds at the peak while scroll continues',
-      Math.abs(holdMid - holdStart) <= 2 && Math.abs(holdEnd - holdStart) <= 2,
-      `frames ${holdStart} / ${holdMid} / ${holdEnd}`,
-    );
-    check('THE REVEAL resumes after the hold', after > holdEnd + 4, `${holdEnd} → ${after}`);
+  // Preloading: by the time the visitor is a third of the way in, the rest of
+  // the reel should be arriving rather than being fetched frame by frame.
+  await seek(0.34);
+  await sleep(2500);
+  const buffered = (await stateOf(page))?.buffered ?? 0;
+  check('the rest of the film preloads behind the visitor', buffered > 0.9,
+    `${Math.round(buffered * 100)}% buffered`);
+}
+
+/* ---- 2. Nothing speaks until the film is over ---------------------------- */
+
+async function checkGate(page, viewport) {
+  const geometry = await page.evaluate(() => {
+    const film = document.querySelector('[data-film]');
+    return film ? { top: film.offsetTop, height: film.offsetHeight } : null;
+  });
+  if (!geometry) return;
+  const span = geometry.height - viewport.height;
+
+  const visible = () =>
+    page.evaluate(() => {
+      // Opacity and visibility do not inherit as computed values, so a link
+      // inside a faded container still reports opacity 1. Walk the ancestors.
+      const seen = (el) => {
+        for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          if (Number(style.opacity) < 0.05) return false;
+          if (style.visibility === 'hidden' || style.display === 'none') return false;
+        }
+        const box = el.getBoundingClientRect();
+        return box.bottom > 0 && box.top < window.innerHeight && box.width > 0;
+      };
+      const inViewport = Array.from(document.querySelectorAll('h1, h2, h3, p, li, a[href]'))
+        .filter((el) => !el.closest('.boot'))
+        .filter(seen)
+        // The HUD, the brand mark and the way out are not content.
+        .filter((el) => !el.closest('.film__hud, .film__scroll, .film__skip, .nav__brand'))
+        .map((el) => (el.textContent || '').trim().slice(0, 40))
+        .filter(Boolean);
+      return {
+        content: inViewport,
+        heroVisible: Number(getComputedStyle(document.querySelector('.film__hero')).opacity) > 0.9,
+        gate: document.documentElement.classList.contains('film-running'),
+      };
+    });
+
+  const focusable = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.nav__links a, .nav__cta, [data-nav-toggle]'))
+      .filter((el) => el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden').length);
+  check('the film does not leave hidden controls in the tab order', focusable === 0,
+    `${focusable} still focusable`);
+
+  for (const at of [0.0, 0.25, 0.55, 0.85]) {
+    await scrollTo(page, Math.round(geometry.top + span * at));
+    const now = await visible();
+    check(`nothing speaks at ${Math.round(at * 100)}% of the film`,
+      now.content.length === 0 && !now.heroVisible && now.gate,
+      now.content.slice(0, 3).join(' | '));
   }
+
+  await scrollTo(page, Math.round(geometry.top + span * 0.995));
+  await sleep(1500);
+  const end = await visible();
+  check('the hero lands once the film is over', end.heroVisible && !end.gate);
+  check('the navigation returns once the film is over', await page.evaluate(() =>
+    Number(getComputedStyle(document.querySelector('.nav__links')).opacity) > 0.9 ||
+    Number(getComputedStyle(document.querySelector('[data-nav-toggle]')).opacity) > 0.9));
+
+  // The skip control must genuinely leave the film.
+  await scrollTo(page, geometry.top + span * 0.1);
+  await page.evaluate(() => document.querySelector('[data-film-skip]').click());
+  await sleep(2200);
+  const past = await page.evaluate(() => {
+    const film = document.querySelector('[data-film]');
+    return window.scrollY >= film.offsetTop + film.offsetHeight - window.innerHeight * 1.5;
+  });
+  check('the skip control leaves the film', past);
 }
 
 /* ---- 3. System Explorer ------------------------------------------------- */
@@ -419,14 +478,14 @@ async function checkMobile(page) {
       const el = document.querySelector(sel);
       return el ? getComputedStyle(el)[prop] : null;
     };
-    const chapters = Array.from(document.querySelectorAll('[data-chapter]')).map((el) => el.offsetHeight);
+    const film = document.querySelector('[data-film]');
     const tabs = document.querySelector('.explorer__tabs');
     return {
       toggleShown: style('[data-nav-toggle]', 'display') !== 'none',
       linksHidden: style('.nav__links', 'display') === 'none',
       tabsScroll: tabs ? getComputedStyle(tabs).overflowX : null,
       railHidden: style('.growth__track', 'display') === 'none',
-      chapters,
+      filmViewports: film ? film.offsetHeight / window.innerHeight : 0,
       overflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
     };
   });
@@ -434,9 +493,11 @@ async function checkMobile(page) {
   check('mobile: explorer becomes a scrollable rail', layout.tabsScroll === 'auto' || layout.tabsScroll === 'scroll',
     String(layout.tabsScroll));
   check('mobile: growth path is stepped, not scrubbed', layout.railHidden);
-  check('mobile: chapters use the shorter mobile runs',
-    layout.chapters.every((h) => h > 0) && layout.chapters[1] > layout.chapters[0],
-    layout.chapters.join(' '));
+  // The film still has to be a long run on a phone, but a deliberately shorter
+  // one than on desktop — 1200vh against 1900vh.
+  check('mobile: the film uses the shorter mobile run',
+    layout.filmViewports >= 10 && layout.filmViewports <= 14,
+    `${layout.filmViewports.toFixed(1)} viewports`);
   check('mobile: no horizontal overflow', layout.overflow);
 
   // The sheet has to actually open and close.
@@ -454,32 +515,31 @@ async function checkMobile(page) {
 async function checkReducedMotion(browser, motionHeight) {
   const { page, errors } = await openPage(browser, VIEWPORTS[2], { reducedMotion: true });
   const result = await page.evaluate(() => {
-    const chapters = Array.from(document.querySelectorAll('[data-chapter]'));
-    const cues = Array.from(document.querySelectorAll('.cue'));
+    const film = document.querySelector('[data-film]');
+    const shots = Array.from(document.querySelectorAll('.strip__poster img'));
     return {
-      stills: chapters.every((c) => c.classList.contains('chapter--still')),
+      still: film?.classList.contains('film--still') ?? false,
+      canvasHidden: getComputedStyle(film.querySelector('canvas')).display === 'none',
       firstPoster: (() => {
-        const img = chapters[0]?.querySelector('.chapter__poster img');
+        const img = film.querySelector('.film__poster img');
         return Boolean(img && img.complete && img.naturalWidth > 0);
       })(),
       // The rest are lazy on purpose; what matters is that each has a real src.
-      postersWired: chapters.every((c) => {
-        const img = c.querySelector('.chapter__poster img');
-        return Boolean(img && img.getAttribute('src') && img.alt);
-      }),
-      cuesVisible: cues.every((c) => Number(getComputedStyle(c).opacity) === 1),
-      canvasesHidden: chapters.every((c) => getComputedStyle(c.querySelector('canvas')).display === 'none'),
+      stripWired: shots.length === 4 && shots.every((img) => img.getAttribute('src') && img.alt),
+      heroVisible: Number(getComputedStyle(film.querySelector('.film__hero')).opacity) > 0.9,
+      gate: document.documentElement.classList.contains('film-running'),
       height: document.documentElement.scrollHeight,
       state: window.__dx?.reduced,
       tabs: document.querySelectorAll('[role="tab"]').length,
     };
   });
-  check('reduced motion: chapters become stills', result.stills && result.canvasesHidden);
-  check('reduced motion: the opening still is painted and the rest are wired',
-    result.firstPoster && result.postersWired);
-  check('reduced motion: all chapter copy is visible', result.cuesVisible);
-  check('reduced motion: the cinematic scroll runs are gone',
-    result.height < motionHeight * 0.8,
+  check('reduced motion: the film becomes stills', result.still && result.canvasHidden);
+  check('reduced motion: the opening still is painted and the strip is wired',
+    result.firstPoster && result.stripWired);
+  check('reduced motion: the hero is shown immediately, not gated',
+    result.heroVisible && !result.gate);
+  check('reduced motion: the long film scroll is gone',
+    result.height < motionHeight * 0.6,
     `${result.height} vs ${motionHeight} with motion`);
   check('reduced motion: interactive sections still present', result.tabs === 6);
   check('reduced motion: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
@@ -507,10 +567,12 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n── ${viewport.name} (${viewport.width}×${viewport.height}) ──`);
   const { page, errors } = await openPage(browser, viewport);
 
-  if (viewport.name === 'desktop') {
-    motionHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-    await checkChapters(page, viewport);
-  }
+  motionHeight = Math.max(
+    motionHeight,
+    await page.evaluate(() => document.documentElement.scrollHeight),
+  );
+  if (viewport.name === 'desktop') await checkFilm(page, viewport);
+  await checkGate(page, viewport);
   await checkExplorer(page);
   await checkGrowth(page);
   await checkCompare(page);

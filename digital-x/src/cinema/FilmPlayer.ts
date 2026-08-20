@@ -1,16 +1,16 @@
 /**
- * A chapter's picture surface: one canvas, one job — draw the frame it is
- * told to draw, cover-fitted, as cheaply as possible.
+ * The picture surface: one canvas, one job — draw the frame it is told to
+ * draw, as cheaply as possible.
  *
  * It owns no scroll logic and no timeline. Everything it knows about where we
  * are in the film arrives as a frame index from the director.
  */
 
-import { FrameLadder } from './ladder';
+import type { FrameSource } from './ladder';
 
 export interface PlayerOptions {
   canvas: HTMLCanvasElement;
-  ladder: FrameLadder;
+  ladder: FrameSource;
   /** Caps devicePixelRatio. Phones gain nothing from 3x on a video frame. */
   maxDpr: number;
   /**
@@ -25,13 +25,13 @@ export interface PlayerOptions {
   fitScale?: number;
 }
 
-export class ChapterPlayer {
+export class FilmPlayer {
   private ctx: CanvasRenderingContext2D;
   private observer: ResizeObserver;
   private cssWidth = 0;
   private cssHeight = 0;
   private lastDrawn = -1;
-  private ladder: FrameLadder;
+  private ladder: FrameSource;
 
   constructor(private options: PlayerOptions) {
     this.ladder = options.ladder;
@@ -48,14 +48,14 @@ export class ChapterPlayer {
    * it the moment that exact frame is resident, so the picture sharpens frame
    * by frame instead of popping when the whole ladder finishes.
    */
-  private hi: FrameLadder | null = null;
+  private hi: FrameSource | null = null;
 
-  setUpgrade(ladder: FrameLadder): void {
+  setUpgrade(ladder: FrameSource): void {
     this.hi = ladder;
     this.lastDrawn = -1;
   }
 
-  get upgrade(): FrameLadder | null {
+  get upgrade(): FrameSource | null {
     return this.hi;
   }
 

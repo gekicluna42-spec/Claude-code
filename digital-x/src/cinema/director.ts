@@ -1,21 +1,32 @@
 /**
- * Wires the four chapters to the scrollbar.
+ * Wires the film to the scrollbar.
  *
- * Each chapter is a tall <section> containing a sticky 100vh stage. Scroll
- * position drives a target film progress; a per-frame ease chases it. The ease
- * is the difference between a slider and a camera — without it every scroll
- * tick reads as a jolt, with too much of it the picture lags the thumb.
+ * One section, one sticky stage, one canvas, one continuous 768-frame reel.
+ * Scroll position drives film time through the pure curve in timeline.ts; a
+ * per-frame ease chases it, which is the difference between a slider and a
+ * camera. Nothing autoplays — stop scrolling and the film stops, scroll back
+ * and it runs in reverse.
  *
- * Nothing here autoplays. Film time is a function of scroll position, so
- * stopping stops the film and scrolling back runs it backwards.
+ * The director also owns the rule that the rest of the page does not exist
+ * until the film is over: it holds `film-running` on <html> until the last
+ * frame has played, and everything else keys off that one class.
  */
 
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { CHAPTERS, type ChapterDef } from './chapters';
-import { ChapterPlayer } from './ChapterPlayer';
-import { FrameLadder, chooseLadders } from './ladder';
+import { FilmPlayer } from './FilmPlayer';
+import { chooseLadders } from './ladder';
 import { loadManifest, type FramesManifest } from './manifest';
+import { fillInBackground } from './preloader';
+import { FilmReel } from './reel';
+import {
+  FILM_END,
+  SCROLL_VH,
+  SCROLL_VH_MOBILE,
+  SEGMENTS,
+  frameAt,
+  progressAtFrame,
+} from './timeline';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -24,169 +35,160 @@ export interface DirectorOptions {
   base: string;
   tier: 'high' | 'low';
   reducedMotion: boolean;
+  /** 0..1 while the opening clip loads behind the curtain. */
   onBootProgress?: (ratio: number) => void;
-}
-
-interface Mounted {
-  def: ChapterDef;
-  section: HTMLElement;
-  stage: HTMLElement;
-  player: ChapterPlayer;
-  base: FrameLadder;
-  /** Scroll progress, 0..1 across the section. */
-  target: number;
-  eased: number;
-  active: boolean;
-  cues: { el: HTMLElement; at: [number, number] }[];
-  upgraded: boolean;
-  /** False until this chapter has rendered once, so the first pass always runs. */
-  primed: boolean;
+  /** 0..1 as the rest of the film fills in behind the visitor. */
+  onBufferProgress?: (ratio: number) => void;
 }
 
 export class Director {
-  private mounted: Mounted[] = [];
+  private section: HTMLElement | null = null;
+  private player: FilmPlayer | null = null;
+  private reel: FilmReel | null = null;
+  private hi: FilmReel | null = null;
   private manifest!: FramesManifest;
-  private ladderChoice!: { first: string; best: string; ext: 'avif' | 'webp' };
+  private choice!: { first: string; best: string; ext: 'avif' | 'webp' };
+  private marks: { el: HTMLElement; at: [number, number] }[] = [];
+  private rail: HTMLElement | null = null;
+  private target = 0;
+  private eased = 0;
   private ticking = false;
+  private ended = false;
+  private stopFiller: (() => void) | null = null;
 
   constructor(private options: DirectorOptions) {}
 
-  /** Frame index each chapter last painted — the QA harness reads this. */
+  /** Read by the QA harness, which asserts on painted frames, not scroll. */
   get state() {
-    return this.mounted.map((m) => ({
-      id: m.def.id,
-      progress: m.eased,
-      frame: m.player.drawn,
-      frames: m.player.frames,
-      active: m.active,
-      ladder: m.player.upgrade?.dir ?? m.base.dir,
-    }));
+    return {
+      progress: this.eased,
+      frame: this.player?.drawn ?? -1,
+      frames: this.player?.frames ?? 0,
+      ladder: this.player?.upgrade?.dir ?? this.reel?.dir ?? '',
+      buffered: this.reel?.loaded ?? 0,
+      ended: this.ended,
+    };
   }
 
   async boot(): Promise<void> {
-    const { root, base, tier, reducedMotion, onBootProgress } = this.options;
-    this.manifest = await loadManifest(base);
-    this.ladderChoice = await chooseLadders(this.manifest, tier);
-
-    const sections = Array.from(root.querySelectorAll<HTMLElement>('[data-chapter]'));
-    for (const section of sections) {
-      const def = CHAPTERS.find((c) => c.id === section.dataset.chapter);
-      if (!def) continue;
-      const stage = section.querySelector<HTMLElement>('.chapter__stage');
-      const canvas = section.querySelector<HTMLCanvasElement>('canvas');
-      if (!stage || !canvas) continue;
-
-      // Reduced motion keeps the posters that are already in the HTML and
-      // never creates a canvas context, a ladder or a ScrollTrigger.
-      if (reducedMotion) {
-        section.classList.add('chapter--still');
-        continue;
-      }
-
-      const counts = this.manifest.chapters.find((c) => c.id === def.id)?.counts;
-      const count = counts?.[this.ladderChoice.first];
-      if (!count) continue;
-
-      const ladder = new FrameLadder({
-        chapterId: def.id,
-        dir: this.ladderChoice.first,
-        count,
-        ext: this.ladderChoice.ext,
-        base,
-        window: tier === 'low' ? 14 : 26,
-      });
-      const player = new ChapterPlayer({ canvas, ladder, maxDpr: tier === 'low' ? 1.5 : 2 });
-
-      this.mounted.push({
-        def,
-        section,
-        stage,
-        player,
-        base: ladder,
-        target: 0,
-        eased: 0,
-        active: false,
-        upgraded: false,
-        primed: false,
-        cues: def.cues
-          .map((c) => ({ el: section.querySelector<HTMLElement>(`[data-cue="${c.id}"]`)!, at: c.at }))
-          .filter((c) => c.el),
-      });
-    }
-
-    if (reducedMotion || !this.mounted.length) {
-      onBootProgress?.(1);
-      document.documentElement.classList.add('is-ready');
+    const { root, base, tier, reducedMotion, onBootProgress, onBufferProgress } = this.options;
+    this.section = root.querySelector<HTMLElement>('[data-film]');
+    if (!this.section) {
+      this.finish();
       return;
     }
 
-    this.applyScrollLengths();
+    // Reduced motion never creates a canvas, a reel or a ScrollTrigger. The
+    // stills already in the markup are the whole experience, and the page's
+    // content is visible immediately rather than gated behind a film that is
+    // not going to play.
+    if (reducedMotion) {
+      this.section.classList.add('film--still');
+      this.finish();
+      return;
+    }
 
-    // The opening chapter loads in full before the curtain lifts. Everything
-    // after it streams in around the playhead, so this is the only wait.
-    const first = this.mounted[0]!;
-    await first.base.loadAll(onBootProgress);
-    first.player.render(0, true);
+    const canvas = this.section.querySelector<HTMLCanvasElement>('[data-film-canvas]');
+    if (!canvas) {
+      this.finish();
+      return;
+    }
 
-    for (const m of this.mounted) this.attach(m);
-    // One forced pass before the curtain lifts: every chapter paints its
-    // opening frame and lights its first cue, so nothing is mid-transition
-    // when the page becomes visible.
+    this.manifest = await loadManifest(base);
+    this.choice = await chooseLadders(this.manifest, tier);
+
+    this.reel = new FilmReel(this.manifest, this.choice.first, this.choice.ext, base, {
+      window: tier === 'low' ? 24 : 40,
+      // Hold the whole narrow reel: about 12 MB of encoded AVIF buys a scrub
+      // that never re-fetches, in either direction, across 1900vh.
+      retain: 'all',
+    });
+    if (!this.reel.count) {
+      this.finish();
+      return;
+    }
+
+    this.player = new FilmPlayer({
+      canvas,
+      ladder: this.reel,
+      maxDpr: tier === 'low' ? 1.5 : 2,
+    });
+
+    this.marks = Array.from(this.section.querySelectorAll<HTMLElement>('[data-mark]')).map((el) => ({
+      el,
+      at: [Number(el.dataset.from ?? 0), Number(el.dataset.to ?? 1)],
+    }));
+    this.rail = this.section.querySelector<HTMLElement>('[data-film-rail]');
+
+    this.applyScrollLength();
+
+    // Phase 1: the opening clip, in full, behind the curtain.
+    const opening = this.reel.clips[0];
+    if (opening) await opening.loadAll(onBootProgress);
+    else onBootProgress?.(1);
+    this.player.render(0, true);
+
+    this.attach();
     this.tick();
     this.startTicker();
-    document.documentElement.classList.add('is-ready');
+    document.documentElement.classList.add('is-ready', 'film-running');
     ScrollTrigger.refresh();
 
-    // Second chapter's opening frames, once the browser is otherwise idle —
-    // the visitor is still reading the hero at this point.
-    this.idle(() => this.mounted[1]?.base.ensure(0, 1));
+    // Phase 2: the rest of the film, in order, at low priority, yielding
+    // whenever the playhead has requests of its own outstanding.
+    this.stopFiller = fillInBackground(this.reel, {
+      skip: 1,
+      busy: () => (this.reel?.clips.some((c) => c.inflight > 0) ?? false) && this.moving,
+      onProgress: onBufferProgress,
+    });
+
+    this.upgrade();
+  }
+
+  /** True while the rendered progress is still chasing the scroll target. */
+  private get moving(): boolean {
+    return Math.abs(this.target - this.eased) > 0.0008;
   }
 
   /**
-   * Section heights come from the chapter definitions rather than the
-   * stylesheet, so the ratio between chapters — THE REVEAL being the longest —
-   * is stated once, in the place the curves are stated.
+   * The film's height. Long on purpose — roughly 2.2vh of scroll per frame,
+   * which is about half the speed of a conventional scroll-scrub.
    */
-  private applyScrollLengths(): void {
+  private applyScrollLength(): void {
+    if (!this.section) return;
     const mobile = window.matchMedia('(max-width: 860px)').matches;
-    for (const m of this.mounted) {
-      m.section.style.setProperty('--chapter-scroll', `${mobile ? m.def.scrollMobile : m.def.scroll}vh`);
-    }
+    this.section.style.setProperty('--film-scroll', `${mobile ? SCROLL_VH_MOBILE : SCROLL_VH}vh`);
   }
 
-  private attach(m: Mounted): void {
+  private attach(): void {
+    if (!this.section) return;
     ScrollTrigger.create({
-      trigger: m.section,
+      trigger: this.section,
       start: 'top top',
       end: 'bottom bottom',
       onUpdate: (self) => {
-        m.target = self.progress;
+        this.target = self.progress;
       },
-      onToggle: (self) => {
-        m.active = self.isActive;
-        m.section.classList.toggle('is-live', self.isActive);
-        if (self.isActive) this.onEnter(m);
-      },
+    });
+
+    const skip = this.section.querySelector<HTMLElement>('[data-film-skip]');
+    skip?.addEventListener('click', () => {
+      const after = this.section!.offsetTop + this.section!.offsetHeight;
+      window.scrollTo({ top: after, behavior: 'smooth' });
     });
   }
 
-  private onEnter(m: Mounted): void {
-    const index = this.mounted.indexOf(m);
-    // Warm the next chapter's opening so the hand-off never shows a poster.
-    this.mounted[index + 1]?.base.ensure(0, 1);
-    if (m.upgraded || this.ladderChoice.best === this.ladderChoice.first) return;
-    m.upgraded = true;
-    const count = this.manifest.chapters.find((c) => c.id === m.def.id)?.counts[this.ladderChoice.best];
-    if (!count) return;
-    const hi = new FrameLadder({
-      chapterId: m.def.id,
-      dir: this.ladderChoice.best,
-      count,
-      ext: this.ladderChoice.ext,
-      base: this.options.base,
-      window: this.options.tier === 'low' ? 10 : 20,
+  /**
+   * The wide ladder, streamed in behind the narrow one. Each frame is taken
+   * from it the moment that exact frame is resident, so the picture sharpens
+   * progressively instead of popping when the whole reel finishes.
+   */
+  private upgrade(): void {
+    if (!this.player || this.choice.best === this.choice.first) return;
+    this.hi = new FilmReel(this.manifest, this.choice.best, this.choice.ext, this.options.base, {
+      window: this.options.tier === 'low' ? 16 : 28,
     });
-    m.player.setUpgrade(hi);
+    this.player.setUpgrade(this.hi);
   }
 
   private startTicker(): void {
@@ -195,45 +197,69 @@ export class Director {
     gsap.ticker.add(() => this.tick());
   }
 
+  /** Cleared after the first pass, so the rest state is painted once. */
+  private primed = false;
+
   private tick(): void {
-    for (const m of this.mounted) {
-      if (m.primed && !m.active && Math.abs(m.target - m.eased) < 0.0005) continue;
-      m.primed = true;
+    if (!this.player || !this.reel) return;
+    if (this.primed && !this.moving && this.eased === this.target) return;
+    this.primed = true;
 
-      // ~0.16 closes most of the gap in three frames: enough to smooth a
-      // trackpad's step quantisation, not enough to feel like lag.
-      m.eased += (m.target - m.eased) * 0.16;
-      if (Math.abs(m.target - m.eased) < 0.0004) m.eased = m.target;
+    // ~0.16 closes most of the gap in three frames: enough to smooth a
+    // trackpad's step quantisation, not enough to feel like lag.
+    this.eased += (this.target - this.eased) * 0.16;
+    if (Math.abs(this.target - this.eased) < 0.0004) this.eased = this.target;
 
-      const film = m.def.curve(m.eased);
-      const frame = film * (m.player.frames - 1);
-      const direction = m.target > m.eased ? 1 : -1;
+    const scale = (this.player.frames - 1) / 767;
+    const frame = frameAt(this.eased) * scale;
+    const direction = this.target > this.eased ? 1 : -1;
 
-      m.base.ensure(frame, direction * 0.6);
-      m.player.upgrade?.ensure(frame, direction * 0.4);
-      m.player.render(frame);
+    this.reel.ensure(frame, direction * 0.6);
+    this.hi?.ensure(frame, direction * 0.4);
+    this.player.render(frame);
 
-      for (const cue of m.cues) {
-        const [from, to] = cue.at;
-        cue.el.classList.toggle('is-on', m.eased >= from && m.eased <= to);
-      }
+    for (const mark of this.marks) {
+      mark.el.classList.toggle('is-on', this.eased >= mark.at[0] && this.eased <= mark.at[1]);
+    }
+    if (this.rail) {
+      this.rail.style.transform = `scaleX(${Math.min(1, this.eased / FILM_END)})`;
+    }
+    // The scroll hint has done its job the moment the film actually moves.
+    this.section?.classList.toggle('has-moved', this.eased > 0.006);
+
+    // The film is over. Everything the page has to say begins here and not a
+    // pixel of scroll earlier.
+    const over = this.eased >= FILM_END;
+    if (over !== this.ended) {
+      this.ended = over;
+      this.section?.classList.toggle('is-over', over);
+      document.documentElement.classList.toggle('film-running', !over);
     }
   }
 
-  private idle(fn: () => void): void {
-    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void })
-      .requestIdleCallback;
-    if (ric) ric(fn);
-    else window.setTimeout(fn, 1200);
+  /** Marks the page usable when there is no film to wait for. */
+  private finish(): void {
+    this.ended = true;
+    this.options.onBootProgress?.(1);
+    this.options.onBufferProgress?.(1);
+    document.documentElement.classList.add('is-ready');
+    document.documentElement.classList.remove('film-running');
   }
 
-  /** Used by the System Explorer, which borrows THE SYSTEM's ladder. */
-  ladderFor(chapterId: string): FrameLadder | null {
-    return this.mounted.find((m) => m.def.id === chapterId)?.base ?? null;
+  /** Scroll offset at which a given clip begins — used by the QA harness. */
+  segmentStarts(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const segment of SEGMENTS) out[segment.id] = progressAtFrame(segment.from);
+    return out;
   }
 
   refresh(): void {
-    this.applyScrollLengths();
+    this.applyScrollLength();
     ScrollTrigger.refresh();
+  }
+
+  dispose(): void {
+    this.stopFiller?.();
+    this.player?.dispose();
   }
 }

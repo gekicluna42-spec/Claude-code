@@ -79,7 +79,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 
 .display,
 .shead__title,
-.cue__title,
+.film__title,
 .offer__title,
 .contact__form-title {
   display: block;
@@ -91,7 +91,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 }
 
 .shead__title { font-size: var(--t-h2); }
-.cue__title--small { font-size: clamp(1.7rem, 4vw, 3.4rem); }
 
 .line { display: block; overflow: hidden; }
 .line > span { display: block; }
