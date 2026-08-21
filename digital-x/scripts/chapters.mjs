@@ -30,7 +30,19 @@ export const CHAPTERS = [
   },
   { id: 'signal', file: '01-signal.mp4', fps: 24, ladders: false },
   { id: 'reveal', file: '02-reveal.mp4', fps: 24, ladders: false },
-  { id: 'system', file: '03-system.mp4', fps: 24, ladders: true },
+  {
+    id: 'system',
+    file: '03-system.mp4',
+    fps: 24,
+    ladders: true,
+    /*
+     * The System Explorer only ever scrubs this arc of the orbit, so the
+     * single-file build inlines that slice and leaves the rest out. In source
+     * frame numbers; the baker rescales it to whichever ladder it is inlining.
+     * Keep in step with EXPLORER_RANGE in src/cinema/timeline.ts.
+     */
+    inlineRange: [20, 72],
+  },
   { id: 'inside', file: '04-inside-x.mp4', fps: 24, ladders: false },
 ];
 

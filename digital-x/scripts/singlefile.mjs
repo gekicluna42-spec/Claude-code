@@ -82,16 +82,37 @@ async function main() {
   const inline = {};
   let frameBytes = 0;
 
-  for (const chapter of CHAPTERS) {
+  for (const chapter of CHAPTERS.filter((c) => c.ladders)) {
     const dir = join(publicDir, 'media', 'frames', LADDER, chapter.id);
     const files = (await readdir(dir)).filter((f) => f.endsWith('.avif')).sort();
-    const uris = [];
-    for (const file of files) {
+
+    // A clip with an inline range contributes only that slice. The array keeps
+    // its full length and the gaps stay empty strings, which the runtime reads
+    // as "no source" and skips — so indices still line up and the nearest
+    // resident frame covers anything outside the range.
+    const meta = manifest.chapters.find((c) => c.id === chapter.id);
+    const scale = meta ? files.length / meta.source.frames : 1;
+    const range = chapter.inlineRange
+      ? [
+          Math.max(0, Math.floor(chapter.inlineRange[0] * scale) - 1),
+          Math.min(files.length - 1, Math.ceil(chapter.inlineRange[1] * scale) + 1),
+        ]
+      : [0, files.length - 1];
+
+    const uris = new Array(files.length).fill('');
+    let inlined = 0;
+    for (let i = range[0]; i <= range[1]; i++) {
+      const file = files[i];
+      if (!file) continue;
       frameBytes += (await stat(join(dir, file))).size;
-      uris.push(await dataUri(join(dir, file)));
+      uris[i] = await dataUri(join(dir, file));
+      inlined++;
     }
     inline[`${LADDER}/${chapter.id}`] = uris;
-    console.log(`${chapter.id}: ${files.length} frames inlined`);
+    console.log(
+      `${chapter.id}: ${inlined} of ${files.length} frames inlined` +
+        (chapter.inlineRange ? ` (frames ${range[0]}-${range[1]})` : ''),
+    );
   }
 
   // Only the xs ladder ships, so the runtime must not try to upgrade to lg or
@@ -107,13 +128,19 @@ async function main() {
     `window.__DX_INLINE__=${JSON.stringify(inline)};`;
 
   // 3. Assemble. The <link> and <script src> are replaced with their contents.
+  //
+  // Replacement FUNCTIONS, not strings: `$&`, `$\'` and friends are special in
+  // a replacement string, and minified JavaScript is full of `$`. Passing the
+  // bundle as a string silently re-inserted the very <script src> tag it was
+  // replacing, leaving a self-contained file that still asked the network for
+  // its own code.
   page = page
     .replace(/<link[^>]*\/fonts\/[^>]*>/g, '')
     .replace(/<link rel="modulepreload"[^>]*>/g, '')
-    .replace(new RegExp(`<link[^>]*href="[^"]*${cssName}"[^>]*>`), `<style>${styles}</style>`)
+    .replace(new RegExp(`<link[^>]*href="[^"]*${cssName}"[^>]*>`), () => `<style>${styles}</style>`)
     .replace(
       new RegExp(`<script[^>]*src="[^"]*${jsName}"[^>]*></script>`),
-      `<script>${bootstrap}</script>\n<script type="module">${js}</script>`,
+      () => `<script>${bootstrap}</script>\n<script type="module">${js}</script>`,
     );
 
   if (page.includes(cssName) || page.includes(jsName)) {
