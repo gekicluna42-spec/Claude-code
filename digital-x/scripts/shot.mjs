@@ -10,7 +10,15 @@ const spots = (process.env.SPOTS ?? '0,600,1800,3200,5200,7000,9000').split(',')
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
-  args: ['--no-sandbox', '--disable-dev-shm-usage', '--force-device-scale-factor=1'],
+  args: [
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--force-device-scale-factor=1',
+    // Headless has no GPU; SwiftShader gives a real WebGL context so the
+    // Signal Engine can actually be looked at rather than skipped.
+    '--use-gl=swiftshader',
+    '--enable-unsafe-swiftshader',
+  ],
 });
 const page = await browser.newPage();
 await page.setViewport({ width, height, deviceScaleFactor: 1 });

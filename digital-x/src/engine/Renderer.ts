@@ -18,8 +18,18 @@ import type { Quality } from './quality';
 export interface Layer {
   /** Everything this layer draws. Added to the shared scene. */
   readonly object3d: THREE.Object3D;
-  /** True while the layer's DOM anchor is on or near screen. */
+  /**
+   * Set by the layer itself during `update`, from a cheap check of where its
+   * DOM anchor is. The renderer reads it afterwards to decide whether anything
+   * is worth drawing.
+   */
   active: boolean;
+  /**
+   * Called every frame the loop is running, whether or not the layer is
+   * active — a layer that is only updated while active can never notice it
+   * has become visible. Layers do their own rect check first and return early
+   * when off screen, so an inactive layer costs one measurement.
+   */
   update(time: number, delta: number): void;
   dispose(): void;
 }
@@ -33,10 +43,35 @@ export class Renderer {
   private running = false;
   private raf = 0;
   private observer: ResizeObserver | null = null;
+  /** Frames in a row with nothing on screen, before the loop parks itself. */
+  private idleFrames = 0;
+
+  /**
+   * Probes for WebGL on a throwaway canvas before Three is allowed near one.
+   *
+   * Constructing a WebGLRenderer against a browser that cannot give it a
+   * context does not merely throw — it logs errors on the way out, so every
+   * visitor without WebGL gets a console full of complaints about a feature
+   * the page is perfectly happy to do without. Asking first keeps that quiet.
+   */
+  private static supported(): boolean {
+    try {
+      const probe = document.createElement('canvas');
+      const gl =
+        probe.getContext('webgl2') ??
+        probe.getContext('webgl') ??
+        probe.getContext('experimental-webgl');
+      if (!gl) return false;
+      (gl as WebGLRenderingContext).getExtension('WEBGL_lose_context')?.loseContext();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   /** Null when WebGL is unavailable — every caller treats that as "skip". */
   static create(canvas: HTMLCanvasElement, quality: Quality): Renderer | null {
-    if (quality.disabled) return null;
+    if (quality.disabled || !Renderer.supported()) return null;
     try {
       const gl = new THREE.WebGLRenderer({
         canvas,
@@ -94,8 +129,9 @@ export class Renderer {
     this.camera.updateProjectionMatrix();
   }
 
-  /** Starts the loop if any layer is on screen. Cheap to call every frame. */
+  /** Starts the loop, or resets its idle countdown. Cheap to call often. */
   wake(): void {
+    this.idleFrames = 0;
     if (this.running || document.hidden) return;
     this.running = true;
     this.clock.getDelta();
@@ -114,19 +150,26 @@ export class Renderer {
 
     let anyActive = false;
     for (const layer of this.layers) {
-      layer.object3d.visible = layer.active;
-      if (!layer.active) continue;
-      anyActive = true;
+      // Every layer is updated. Each one measures its own anchor and returns
+      // immediately when off screen, so this is a rect read for the ones that
+      // have nothing to do — and it is the only way an off-screen layer ever
+      // discovers it has scrolled into view.
       layer.update(time, delta);
+      layer.object3d.visible = layer.active;
+      if (layer.active) anyActive = true;
     }
 
     if (anyActive) {
+      this.idleFrames = 0;
       this.renderer.render(this.scene, this.camera);
-      this.raf = requestAnimationFrame(this.tick);
+    } else if (++this.idleFrames > 45) {
+      // Nothing has been on screen for the better part of a second. Park the
+      // loop; scrolling, resizing or a pointer will start it again.
+      this.stop();
       return;
     }
-    // Nothing on screen wants the GPU. Idle until something does.
-    this.stop();
+
+    this.raf = requestAnimationFrame(this.tick);
   };
 
   get dpr(): number {

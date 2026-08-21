@@ -13,6 +13,7 @@ import { partOne, partTwo } from './sections.html';
 const NAV = [
   { href: '#usluge', label: 'Usluge' },
   { href: '#sistem', label: 'Sistem' },
+  { href: '#autoritet', label: 'Autoritet' },
   { href: '#cjenovnik', label: 'Cjenovnik' },
   { href: '#radovi', label: 'Radovi' },
   { href: '#analiza', label: 'Analiza' },
@@ -73,7 +74,7 @@ const footer = (): string => {
 <footer class="foot">
   <div class="wrap foot__grid">
     <div class="foot__brand">
-      ${xMark('foot__x')}
+      <span class="foot__mark" data-foot-mark>${xMark('foot__x')}</span>
       <p class="foot__word">DIGITAL<em>X</em></p>
       <p class="foot__line">${esc(HERO.lede)}</p>
     </div>
@@ -177,6 +178,9 @@ export function renderPage(): { head: string; body: string } {
     head: headTags(),
     body: join([
       `<a class="skip" href="#main">Preskoči na sadržaj</a>`,
+      // One WebGL surface for the entire page. Purely presentational: it sits
+      // behind the document and is removed from the accessibility tree.
+      `<canvas class="engine" data-engine-canvas aria-hidden="true"></canvas>`,
       boot(),
       buffer(),
       nav(),

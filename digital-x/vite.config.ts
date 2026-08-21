@@ -9,7 +9,12 @@ export default defineConfig({
     assetsInlineLimit: 2048,
     rollupOptions: {
       output: {
-        manualChunks: { motion: ['gsap', 'gsap/ScrollTrigger', 'lenis'] },
+        manualChunks: {
+          motion: ['gsap', 'gsap/ScrollTrigger', 'lenis'],
+          // Three lands in its own chunk behind the dynamic import, so the
+          // film's critical path never waits on it.
+          three: ['three'],
+        },
       },
     },
   },

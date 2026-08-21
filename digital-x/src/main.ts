@@ -13,6 +13,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 
 import { Director } from './cinema/director';
+import type { Engine } from './engine';
 import { FILM_END, KEYS, SCROLL_VH, SCROLL_VH_MOBILE, SEGMENTS } from './cinema/timeline';
 import { $, deviceTier, prefersReducedMotion } from './lib/dom';
 import { initReveal, markReveals } from './lib/reveal';
@@ -150,6 +151,28 @@ async function main(): Promise<void> {
   }
 
   void initExplorer({ base: BASE, tier });
+
+  // The Signal Engine goes on last, is loaded separately, and is allowed to
+  // fail. Three.js is ~150 KB gzipped — asking the visitor to download it
+  // before the film can start would trade the thing they came for against the
+  // thing behind it. So it arrives after, on its own, and a refused GL
+  // context, an old driver or a device that simply cannot are all fine: the
+  // page is already complete without it.
+  let engine: Engine | null = null;
+  (window as unknown as { __dx?: Record<string, unknown> }).__dx!.engine = () => ({
+    ok: Boolean(engine?.ok),
+    loaded: engine !== null,
+  });
+
+  if (!reduced) {
+    void import('./engine')
+      .then((module) => {
+        engine = module.mountEngine();
+      })
+      .catch((error) => {
+        console.warn('[digital-x] signal engine unavailable:', error);
+      });
+  }
 
   let last = window.innerWidth;
   window.addEventListener('resize', () => {

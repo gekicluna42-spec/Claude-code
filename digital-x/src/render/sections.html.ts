@@ -134,6 +134,33 @@ const explorer = (): string => `
   </div>
 </section>`;
 
+/**
+ * THE AUTHORITY FIELD.
+ *
+ * A new section, but not new claims: every line is the verified SEO/GEO/AEO
+ * discipline in the brand's own words. The constellation behind it is drawn by
+ * the WebGL layer and carries no information the text does not.
+ */
+const authority = (): string => {
+  const seo = DISCIPLINES.find((d) => d.id === 'seo')!;
+  return `
+<section class="section section--authority" id="autoritet" data-authority>
+  <div class="wrap authority">
+    <div class="authority__copy">
+      ${head('03 Authority', ['Vidljivost nije cilj.', 'Autoritet jeste.'], seo.detail, 'shead--accent')}
+      <p class="authority__lead">${esc(seo.tagline)}</p>
+      <ul class="ticks">${map(seo.points, (p) => `<li>${esc(p)}</li>`)}</ul>
+      <p class="authority__from">${esc(seo.from)}</p>
+      <div class="authority__actions">
+        <a class="btn btn--primary btn--sm" href="#analiza">${esc(AUDIT.cta)}</a>
+        <a class="btn btn--ghost btn--sm" href="#usluga-seo">Vidi disciplinu</a>
+      </div>
+    </div>
+    <div class="authority__field" aria-hidden="true"></div>
+  </div>
+</section>`;
+};
+
 /** GROWTH PATH — one signal, five stages, scrubbable and hoverable. */
 const growth = (): string => `
 <section class="section section--growth" id="rast" data-growth>
@@ -217,7 +244,17 @@ const process = (): string => `
 </section>`;
 
 export const partOne = (): string =>
-  join([positioning(), offer(), disciplines(), explorer(), growth(), apps(), automation(), process()]);
+  join([
+    positioning(),
+    offer(),
+    disciplines(),
+    explorer(),
+    authority(),
+    growth(),
+    apps(),
+    automation(),
+    process(),
+  ]);
 
 const pricing = (): string => `
 <section class="section section--pricing" id="cjenovnik">

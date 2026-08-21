@@ -285,6 +285,110 @@ async function checkGate(page, viewport) {
   check('the skip control leaves the film', past);
 }
 
+/* ---- 2b. The Signal Engine ----------------------------------------------- */
+
+async function checkEngine(page) {
+  const engine = await page.evaluate(() => window.__dx?.engine?.() ?? null);
+  check('the Signal Engine reports its state', engine !== null);
+  check('the Signal Engine mounted', engine?.ok === true, JSON.stringify(engine));
+  if (!engine?.ok) return;
+
+  check('the engine canvas is present, decorative and inert', await page.evaluate(() => {
+    const c = document.querySelector('[data-engine-canvas]');
+    if (!c) return false;
+    const style = getComputedStyle(c);
+    return (
+      c.getAttribute('aria-hidden') === 'true' &&
+      style.pointerEvents === 'none' &&
+      style.position === 'fixed' &&
+      c.classList.contains('is-live')
+    );
+  }));
+
+  // One context for the whole page, not one per section.
+  check('there is exactly one WebGL canvas',
+    (await page.$$('canvas[data-engine-canvas]')).length === 1);
+
+  // Each object's DOM anchor has to exist and have a box, or the object is
+  // drawing somewhere nobody is looking.
+  const anchors = await page.evaluate(() => {
+    const box = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { w: Math.round(r.width), h: Math.round(r.height) };
+    };
+    return {
+      explorer: box('.explorer__stage'),
+      authority: box('.authority__field'),
+      chain: box('[data-chain]'),
+      footer: box('[data-foot-mark]'),
+      disciplines: document.querySelectorAll('.disc__item').length,
+    };
+  });
+  for (const [name, value] of Object.entries(anchors)) {
+    if (name === 'disciplines') continue;
+    check(`${name} anchor has a box`, Boolean(value && value.w > 40 && value.h > 40),
+      JSON.stringify(value));
+  }
+  check('every verified discipline has a Signal Object anchor', anchors.disciplines === 6,
+    String(anchors.disciplines));
+
+  // The renderer must park itself when nothing is on screen, or the world
+  // burns a GPU for the whole visit.
+  await scrollTo(page, 0);
+  await sleep(1600);
+  const parked = await page.evaluate(
+    () => new Promise((resolve) => {
+      let frames = 0;
+      const start = performance.now();
+      const tick = () => {
+        frames++;
+        if (performance.now() - start > 600) resolve(frames);
+        else requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }),
+  );
+  check('the page still animates smoothly with the world parked', parked > 20, `${parked} frames`);
+}
+
+/* ---- 2c. No WebGL at all -------------------------------------------------- */
+
+async function checkWithoutWebgl() {
+  const blind = await puppeteer.launch({
+    executablePath: CHROME,
+    headless: true,
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-webgl', '--disable-webgl2'],
+  });
+  try {
+    const { page, errors } = await openPage(blind, VIEWPORTS[2]);
+    const result = await page.evaluate(() => ({
+      engine: window.__dx?.engine?.() ?? null,
+      ready: document.documentElement.classList.contains('is-ready'),
+      canvasLive: document.querySelector('[data-engine-canvas]')?.classList.contains('is-live'),
+      headings: document.querySelectorAll('h1, h2').length,
+      tabs: document.querySelectorAll('[role="tab"]').length,
+    }));
+    check('no WebGL: the page still becomes ready', result.ready);
+    check('no WebGL: the engine declines rather than throwing', result.engine?.ok === false,
+      JSON.stringify(result.engine));
+    check('no WebGL: the canvas stays invisible', result.canvasLive === false);
+    check('no WebGL: all the content is still there',
+      result.headings >= 12 && result.tabs === 6,
+      `${result.headings} headings, ${result.tabs} tabs`);
+    check('no WebGL: the film still scrubs', await page.evaluate(async () => {
+      window.scrollTo({ top: 2000, behavior: 'instant' });
+      await new Promise((r) => setTimeout(r, 1200));
+      return (window.__dx?.state?.()?.frame ?? -1) > 0;
+    }));
+    check('no WebGL: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
+    await page.close();
+  } finally {
+    await blind.close();
+  }
+}
+
 /* ---- 3. System Explorer ------------------------------------------------- */
 
 async function checkExplorer(page) {
@@ -578,6 +682,13 @@ async function checkReducedMotion(browser, motionHeight) {
       result.height < motionHeight,
     `stage ${result.stagePosition}, ${Math.round(result.filmViewports * 100)}vh of a configured ${configured}vh`);
   check('reduced motion: interactive sections still present', result.tabs === 6);
+  const rmEngine = await page.evaluate(() => window.__dx?.engine?.() ?? null);
+  check('reduced motion: the world is never built',
+    rmEngine?.ok === false && rmEngine?.loaded === false, JSON.stringify(rmEngine));
+  check('reduced motion: the engine canvas is display:none', await page.evaluate(() => {
+    const c = document.querySelector('[data-engine-canvas]');
+    return !c || getComputedStyle(c).display === 'none';
+  }));
   check('reduced motion: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   // The explorer must still work with no film behind it.
@@ -591,10 +702,17 @@ async function checkReducedMotion(browser, motionHeight) {
 
 /* ---- run ---------------------------------------------------------------- */
 
+// SwiftShader gives headless a real WebGL context, so the Signal Engine is
+// actually exercised rather than silently skipped in every run.
 const browser = await puppeteer.launch({
   executablePath: CHROME,
   headless: true,
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  args: [
+    '--no-sandbox',
+    '--disable-dev-shm-usage',
+    '--use-gl=swiftshader',
+    '--enable-unsafe-swiftshader',
+  ],
 });
 
 let motionHeight = 0;
@@ -608,6 +726,7 @@ for (const viewport of VIEWPORTS) {
   }
   if (viewport.name === 'desktop') await checkFilm(page, viewport);
   await checkGate(page, viewport);
+  if (viewport.name === 'desktop') await checkEngine(page);
   await checkExplorer(page);
   await checkGrowth(page);
   await checkCompare(page);
@@ -619,6 +738,9 @@ for (const viewport of VIEWPORTS) {
   check('no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
   await page.close();
 }
+
+console.log('\n── no WebGL ──');
+await checkWithoutWebgl();
 
 console.log('\n── reduced motion ──');
 await checkReducedMotion(browser, motionHeight);

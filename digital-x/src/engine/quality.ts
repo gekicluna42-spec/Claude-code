@@ -38,7 +38,9 @@ export function resolveQuality(): Quality {
     maxDpr: low ? 1.25 : 1.75,
     fieldParticles: low ? 900 : 2600,
     xParticles: low ? 1400 : 4200,
-    footerParticles: low ? 800 : 2400,
+    // Fewer than the interactive X: the footer mark is smaller on screen, and
+    // a dense cloud at that size reads as a blob rather than as a mark.
+    footerParticles: low ? 500 : 1300,
     authorityNodes: low ? 34 : 64,
     // Pointer parallax is a mouse affordance; a touch device has no hover to
     // respond to, and reading touch as a cursor makes the world twitch.
