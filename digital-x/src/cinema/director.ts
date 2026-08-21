@@ -21,14 +21,26 @@ import { fillInBackground } from './preloader';
 import { FilmReel } from './reel';
 import {
   FILM_END,
+  HERO_CLIPS,
   SCROLL_VH,
   SCROLL_VH_MOBILE,
   SEGMENTS,
+  TOTAL_FRAMES,
   frameAt,
   progressAtFrame,
 } from './timeline';
 
 gsap.registerPlugin(ScrollTrigger);
+
+/**
+ * How much of the film the curtain waits for.
+ *
+ * Thirteen frames is the first frame plus roughly 35vh of scroll at this
+ * film's pace — enough that the visitor cannot outrun the loader before
+ * STAGE 2 has caught up, and short enough that the wait is a moment rather
+ * than a download.
+ */
+const CRITICAL_FRAMES = 13;
 
 export interface DirectorOptions {
   root: ParentNode;
@@ -98,9 +110,10 @@ export class Director {
     this.choice = await chooseLadders(this.manifest, tier);
 
     this.reel = new FilmReel(this.manifest, this.choice.first, this.choice.ext, base, {
+      clips: HERO_CLIPS,
       window: tier === 'low' ? 24 : 40,
-      // Hold the whole narrow reel: about 12 MB of encoded AVIF buys a scrub
-      // that never re-fetches, in either direction, across 1900vh.
+      // Hold the whole narrow reel. At 160 frames it is a couple of megabytes,
+      // and holding it means scrolling back up through 520vh never re-fetches.
       retain: 'all',
     });
     if (!this.reel.count) {
@@ -122,9 +135,10 @@ export class Director {
 
     this.applyScrollLength();
 
-    // Phase 1: the opening clip, in full, behind the curtain.
+    // STAGE 1. Only what the opening viewport needs: the first frame and the
+    // dozen behind it. The visitor is in before the rest of the reel exists.
     const opening = this.reel.clips[0];
-    if (opening) await opening.loadAll(onBootProgress);
+    if (opening) await opening.loadCritical(CRITICAL_FRAMES, onBootProgress);
     else onBootProgress?.(1);
     this.player.render(0, true);
 
@@ -186,6 +200,7 @@ export class Director {
   private upgrade(): void {
     if (!this.player || this.choice.best === this.choice.first) return;
     this.hi = new FilmReel(this.manifest, this.choice.best, this.choice.ext, this.options.base, {
+      clips: HERO_CLIPS,
       window: this.options.tier === 'low' ? 16 : 28,
     });
     this.player.setUpgrade(this.hi);
@@ -210,7 +225,9 @@ export class Director {
     this.eased += (this.target - this.eased) * 0.16;
     if (Math.abs(this.target - this.eased) < 0.0004) this.eased = this.target;
 
-    const scale = (this.player.frames - 1) / 767;
+    // The ladder in use may be strided, so map the timeline's nominal frame
+    // numbers onto however many frames this ladder actually has.
+    const scale = (this.player.frames - 1) / (TOTAL_FRAMES - 1);
     const frame = frameAt(this.eased) * scale;
     const direction = this.target > this.eased ? 1 : -1;
 

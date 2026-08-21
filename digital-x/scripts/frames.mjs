@@ -18,7 +18,7 @@ import { promisify } from 'node:util';
 import { cpus } from 'node:os';
 import sharp from 'sharp';
 import ffmpeg from '@ffmpeg-installer/ffmpeg';
-import { CHAPTERS, LADDERS } from './chapters.mjs';
+import { CHAPTERS, LADDERS, strideFor } from './chapters.mjs';
 
 const run = promisify(execFile);
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -70,14 +70,24 @@ async function main() {
   const manifestChapters = [];
   let aspect = 16 / 9;
 
-  for (const chapter of CHAPTERS) {
+  // Only clips something still reads get ladders. The rest keep their source
+  // mp4 and their posters; `npm run frames` regenerates them if that changes.
+  for (const chapter of CHAPTERS.filter((c) => c.build)) {
     const tmp = join(tmpRoot, chapter.id);
     await mkdir(tmp, { recursive: true });
 
     // 1. Decode once at full resolution; sharp does every encode from here so
     //    the output matches the rest of the site's images.
-    console.log(`[${chapter.id}] decoding…`);
-    await ffmpegRun(['-i', join(srcDir, chapter.file), '-vsync', '0', join(tmp, 'src-%04d.png')]);
+    // Extraction rate is per clip: the hero was authored as one 16s flight and
+    // is sampled at 10fps to land on the 160-frame budget the scroll is built
+    // around, while the older 8s clips keep their native 24.
+    console.log(`[${chapter.id}] decoding at ${chapter.fps}fps…`);
+    await ffmpegRun([
+      '-i', join(srcDir, chapter.file),
+      '-vf', `fps=${chapter.fps}`,
+      '-vsync', '0',
+      join(tmp, 'src-%04d.png'),
+    ]);
     const sources = (await readdir(tmp)).filter((f) => f.endsWith('.png')).sort();
     const total = sources.length;
     const probe = await sharp(join(tmp, sources[0])).metadata();
@@ -90,9 +100,12 @@ async function main() {
       await mkdir(outDir, { recursive: true });
 
       // Frame n of the ladder is source frame n*stride, so a ladder index maps
-      // to a time in the film without the runtime knowing the stride.
+      // to a time in the film without the runtime knowing the stride. The
+      // stride comes from the ladder's frame budget rather than a constant, so
+      // a clip already sampled sparsely is not thinned twice.
+      const stride = strideFor(ladder, total);
       const picks = [];
-      for (let i = 0; i * ladder.stride < total; i++) picks.push(sources[i * ladder.stride]);
+      for (let i = 0; i * stride < total; i++) picks.push(sources[i * stride]);
 
       await pooled(picks, async (file, i) => {
         const name = String(i).padStart(4, '0');
@@ -138,7 +151,12 @@ async function main() {
       ]);
     }
 
-    manifestChapters.push({ id: chapter.id, source: { frames: total, fps: 24, duration: total / 24 }, counts });
+    manifestChapters.push({
+      id: chapter.id,
+      hero: Boolean(chapter.hero),
+      source: { frames: total, fps: chapter.fps, duration: total / chapter.fps },
+      counts,
+    });
     await rm(tmp, { recursive: true, force: true });
   }
 
@@ -152,7 +170,7 @@ async function main() {
   //    frame total is ever hardcoded in the app.
   const manifest = {
     aspect,
-    ladders: LADDERS.map((l) => ({ dir: l.dir, width: l.width, webp: l.webp, stride: l.stride })),
+    ladders: LADDERS.map((l) => ({ dir: l.dir, width: l.width, webp: l.webp })),
     chapters: manifestChapters,
   };
   await writeFile(join(framesDir, 'frames.json'), `${JSON.stringify(manifest, null, 2)}\n`);

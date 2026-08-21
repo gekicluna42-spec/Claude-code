@@ -1,15 +1,13 @@
 /**
- * The four clips as one reel.
+ * One or more clips presented to the player as a single reel.
  *
- * The player asks for global frame 0..767 and never learns that four separate
- * ladders sit underneath. Everything that matters at a clip boundary — warming
- * the next clip before the playhead crosses into it, falling back across the
- * seam when a frame has not arrived — is handled here, so the boundary is
- * invisible in both directions.
+ * The hero is a single 160-frame master, so today this usually wraps one
+ * ladder — but the seam handling stays: it is what let four clips play as one
+ * film before, and it costs nothing when there is only one. The player asks
+ * for a global frame index and never learns how many ladders sit underneath.
  */
 
 import { FrameLadder, type FrameSource } from './ladder';
-import { SEGMENTS, TOTAL_FRAMES } from './timeline';
 import type { FramesManifest } from './manifest';
 
 export class FilmReel implements FrameSource {
@@ -23,16 +21,15 @@ export class FilmReel implements FrameSource {
     readonly dir: string,
     ext: 'avif' | 'webp',
     base: string,
-    options: { window: number; retain?: 'all' | 'window' },
+    options: { window: number; retain?: 'all' | 'window'; clips: readonly string[] },
   ) {
     let offset = 0;
-    for (const segment of SEGMENTS) {
-      const counts = manifest.chapters.find((c) => c.id === segment.id)?.counts;
-      const count = counts?.[dir];
+    for (const id of options.clips) {
+      const count = manifest.chapters.find((c) => c.id === id)?.counts[dir];
       if (!count) continue;
       this.ladders.push(
         new FrameLadder({
-          chapterId: segment.id,
+          chapterId: id,
           dir,
           count,
           ext,
@@ -44,9 +41,10 @@ export class FilmReel implements FrameSource {
       this.offsets.push(offset);
       offset += count;
     }
-    // The manifest is the authority: a strided ladder has fewer frames than
-    // TOTAL_FRAMES, and the timeline is rescaled onto whatever it reports.
-    this.count = offset || TOTAL_FRAMES;
+    // The manifest is the authority: a strided ladder carries fewer frames than
+    // the timeline's nominal total, and the timeline is rescaled onto whatever
+    // it actually reports.
+    this.count = offset;
   }
 
   /** Ladder index containing global frame `i`, and the local index within it. */

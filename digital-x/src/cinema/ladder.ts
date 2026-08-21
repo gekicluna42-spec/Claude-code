@@ -100,24 +100,82 @@ export class FrameLadder implements FrameSource {
     return `${base}/media/frames/${dir}/${chapterId}/${String(i).padStart(4, '0')}.${ext}`;
   }
 
+  /**
+   * Starts one frame loading.
+   *
+   * A frame counts as resident only once it is DECODED, not merely downloaded.
+   * `drawImage` on an undecoded image decodes it synchronously on the thread
+   * that is trying to paint, which is exactly the stall a scroll-scrub cannot
+   * afford — so `decode()` moves that work off the critical path and the frame
+   * is published only when painting it is guaranteed to be cheap.
+   */
   private request(i: number, priority: 'high' | 'low' = 'high'): void {
     if (this.images.has(i) || this.pending.has(i) || this.failed.has(i)) return;
     if (i < 0 || i >= this.options.count) return;
     const src = this.url(i);
     if (!src) return;
+
     const img = new Image();
     img.decoding = 'async';
     // The background filler must never outrank the frames under the playhead.
     (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = priority;
     this.pending.set(i, img);
+
     const settle = (ok: boolean) => {
+      if (this.pending.get(i) !== img) return;
       this.pending.delete(i);
       if (ok) this.images.set(i, img);
       else this.failed.add(i);
+      this.waiters.get(i)?.forEach((resolve) => resolve());
+      this.waiters.delete(i);
     };
-    img.onload = () => settle(true);
-    img.onerror = () => settle(false);
+
     img.src = src;
+    if (typeof img.decode === 'function') {
+      img.decode().then(
+        () => settle(true),
+        // A rejected decode is a real failure — a corrupt file, or a format
+        // this browser cannot read. Either way, never retry it.
+        () => settle(false),
+      );
+    } else {
+      img.onload = () => settle(true);
+      img.onerror = () => settle(false);
+    }
+  }
+
+  /** Resolvers waiting on specific frames, used by the critical-stage load. */
+  private waiters = new Map<number, (() => void)[]>();
+
+  /** Resolves once frame `i` is resident or known to have failed. */
+  private whenSettled(i: number): Promise<void> {
+    if (this.images.has(i) || this.failed.has(i)) return Promise.resolve();
+    return new Promise((resolve) => {
+      const list = this.waiters.get(i) ?? [];
+      list.push(resolve);
+      this.waiters.set(i, list);
+    });
+  }
+
+  /**
+   * STAGE 1. Loads just enough of the opening to render the first viewport
+   * without a blank frame, and resolves. Everything else streams in behind it.
+   *
+   * This is the only load anything ever waits on.
+   */
+  async loadCritical(count: number, onProgress?: (ratio: number) => void): Promise<void> {
+    const last = Math.min(count, this.options.count) - 1;
+    let done = 0;
+    const waits: Promise<void>[] = [];
+    for (let i = 0; i <= last; i++) {
+      this.request(i, 'high');
+      waits.push(
+        this.whenSettled(i).then(() => {
+          onProgress?.(++done / (last + 1));
+        }),
+      );
+    }
+    await Promise.all(waits);
   }
 
   /**
@@ -167,39 +225,6 @@ export class FrameLadder implements FrameSource {
       if (!this.images.has(i) && !this.failed.has(i)) return false;
     }
     return true;
-  }
-
-  /** Loads the whole ladder. Used for the opening chapter and nothing else. */
-  async loadAll(onProgress?: (ratio: number) => void): Promise<void> {
-    const { count } = this.options;
-    let done = 0;
-    const step = () => onProgress?.(++done / count);
-    // Six at a time: enough to saturate the connection, few enough that the
-    // first frames — the ones needed first — are not queued behind the last.
-    const lanes = Array.from({ length: 6 }, async (_, lane) => {
-      for (let i = lane; i < count; i += 6) {
-        await this.load(i);
-        step();
-      }
-    });
-    await Promise.all(lanes);
-  }
-
-  private load(i: number): Promise<void> {
-    if (this.images.has(i) || this.failed.has(i)) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      const img = new Image();
-      img.decoding = 'async';
-      img.onload = () => {
-        this.images.set(i, img);
-        resolve();
-      };
-      img.onerror = () => {
-        this.failed.add(i);
-        resolve();
-      };
-      img.src = this.url(i);
-    });
   }
 
   /**
