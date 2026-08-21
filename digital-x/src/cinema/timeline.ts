@@ -1,12 +1,9 @@
 /**
  * The hero film.
  *
- * TWO CONFIGURATIONS live here, and exactly one is active. The Seedance master
- * is generated and paid for, but Higgsfield serves results from a CDN this
- * session's egress policy denies, so its bytes are not in media-src/ yet. Until
- * they are, the four-clip reel below stays the hero and the site keeps working.
- * Swapping is: drop signal-engine.mp4 in, flip the `build` flags in
- * scripts/chapters.mjs, run `npm run frames`, and move ACTIVE to SIGNAL_ENGINE.
+ * TWO CONFIGURATIONS live here, and exactly one is ACTIVE. The four-clip reel
+ * is kept because it is a complete, working alternative — swapping back is one
+ * constant and `ladders: true` in scripts/chapters.mjs.
  *
  * Pacing lives in KEYS: a list of (scroll progress, frame) pairs the runtime
  * interpolates. Expressing it this way makes two things true that a duration
@@ -65,7 +62,7 @@ const SIGNAL_ENGINE: FilmConfig = {
   scrollVhMobile: 380,
 };
 
-/** The four 8-second clips played as one 768-frame reel. Active today. */
+/** The four 8-second clips played as one 768-frame reel. The earlier hero. */
 const FOUR_CLIP_REEL: FilmConfig = {
   clips: ['signal', 'reveal', 'system', 'inside'],
   totalFrames: 768,
@@ -90,7 +87,7 @@ const FOUR_CLIP_REEL: FilmConfig = {
   scrollVhMobile: 1200,
 };
 
-const ACTIVE: FilmConfig = FOUR_CLIP_REEL;
+const ACTIVE: FilmConfig = SIGNAL_ENGINE;
 
 export const SEGMENTS = ACTIVE.segments;
 export const TOTAL_FRAMES = ACTIVE.totalFrames;
@@ -100,8 +97,8 @@ export const FILM_END = ACTIVE.filmEnd;
 export const SCROLL_VH = ACTIVE.scrollVh;
 export const SCROLL_VH_MOBILE = ACTIVE.scrollVhMobile;
 
-/** Referenced so the pending configuration cannot silently rot. */
-export const PENDING_FILM = SIGNAL_ENGINE;
+/** Referenced so the inactive configuration cannot silently rot. */
+export const ALTERNATE_FILM = FOUR_CLIP_REEL;
 
 /** Interpolates KEYS. Pure: the same progress always yields the same frame. */
 export function frameAt(progress: number): number {

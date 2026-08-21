@@ -163,11 +163,11 @@ const headTags = (): string =>
     `<meta property="og:title" content="${esc(META.title)}">`,
     `<meta property="og:description" content="${esc(META.description)}">`,
     `<meta property="og:url" content="${ORIGIN}/">`,
-    `<meta property="og:image" content="${ORIGIN}/media/poster/reveal-close.jpg">`,
+    `<meta property="og:image" content="${ORIGIN}/media/poster/signal-engine-close.jpg">`,
     `<meta name="twitter:card" content="summary_large_image">`,
     `<meta name="twitter:title" content="${esc(META.title)}">`,
     `<meta name="twitter:description" content="${esc(META.description)}">`,
-    `<meta name="twitter:image" content="${ORIGIN}/media/poster/reveal-close.jpg">`,
+    `<meta name="twitter:image" content="${ORIGIN}/media/poster/signal-engine-close.jpg">`,
     `<meta name="theme-color" content="#070708">`,
     schema(),
   ]);

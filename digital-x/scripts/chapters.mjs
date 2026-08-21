@@ -7,21 +7,31 @@
  * `system` is also what the System Explorer scrubs so that selecting a
  * discipline turns the real structure.
  *
- * `build` marks which clips get frame ladders. Everything keeps its source mp4
- * and its posters either way.
+ * Only the hero and `system` get frame ladders; the rest would be dead weight.
+ * Every clip still gets posters, and the hero gets a fast-start copy.
  */
 /*
- * `signal-engine` is generated and paid for but its bytes are not here yet:
- * Higgsfield serves results from a CDN this session's egress policy denies.
- * It stays listed with build:false so the switch is two flags, and the site
- * keeps running on the four-clip reel until the file lands in media-src/.
+ * `ladders` marks the clips something still scrubs. Posters are built for every
+ * clip either way — the sections below the film still use them as stills.
  */
 export const CHAPTERS = [
-  { id: 'signal-engine', file: 'signal-engine.mp4', fps: 10, hero: true, build: false },
-  { id: 'signal', file: '01-signal.mp4', fps: 24, build: true },
-  { id: 'reveal', file: '02-reveal.mp4', fps: 24, build: true },
-  { id: 'system', file: '03-system.mp4', fps: 24, build: true },
-  { id: 'inside', file: '04-inside-x.mp4', fps: 24, build: true },
+  {
+    id: 'signal-engine',
+    file: 'signal-engine.mp4',
+    fps: 10,
+    hero: true,
+    ladders: true,
+    /*
+     * Midpoints of the five beats, in frames of the 160-frame reel. These
+     * become the stills a reduced-motion visitor sees instead of the film, so
+     * they have to be kept in step with SEGMENTS in src/cinema/timeline.ts.
+     */
+    beats: [15, 45, 80, 115, 150],
+  },
+  { id: 'signal', file: '01-signal.mp4', fps: 24, ladders: false },
+  { id: 'reveal', file: '02-reveal.mp4', fps: 24, ladders: false },
+  { id: 'system', file: '03-system.mp4', fps: 24, ladders: true },
+  { id: 'inside', file: '04-inside-x.mp4', fps: 24, ladders: false },
 ];
 
 export const HERO = CHAPTERS.find((c) => c.hero);

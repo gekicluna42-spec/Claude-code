@@ -70,9 +70,38 @@ async function main() {
   const manifestChapters = [];
   let aspect = 16 / 9;
 
-  // Only clips something still reads get ladders. The rest keep their source
-  // mp4 and their posters; `npm run frames` regenerates them if that changes.
-  for (const chapter of CHAPTERS.filter((c) => c.build)) {
+  /**
+   * Posters, at three formats. `open` is the still a reduced-motion visitor and
+   * the <noscript> path see; `close` is the payoff the sections below inherit,
+   * and `system-close` is also the System Explorer's X.
+   */
+  const poster = (src, base) =>
+    Promise.all([
+      sharp(src).resize({ width: 1600 }).avif({ quality: 52, effort: 3 }).toFile(join(posterDir, `${base}.avif`)),
+      sharp(src).resize({ width: 1600 }).webp({ quality: 74 }).toFile(join(posterDir, `${base}.webp`)),
+      sharp(src).resize({ width: 1600 }).jpeg({ quality: 80, mozjpeg: true }).toFile(join(posterDir, `${base}.jpg`)),
+    ]);
+
+  // Clips nothing scrubs still need their two stills, but not a full decode of
+  // every frame — seek straight to the ends instead. Seconds rather than
+  // minutes, and it keeps `npm run frames` able to rebuild everything.
+  if (!only) {
+    for (const chapter of CHAPTERS.filter((c) => !c.ladders)) {
+      const tmp = join(tmpRoot, chapter.id);
+      await mkdir(tmp, { recursive: true });
+      console.log(`[${chapter.id}] posters only`);
+      await ffmpegRun(['-i', join(srcDir, chapter.file), '-frames:v', '1', join(tmp, 'open.png')]);
+      await ffmpegRun([
+        '-sseof', '-0.2', '-i', join(srcDir, chapter.file),
+        '-update', '1', '-frames:v', '1', join(tmp, 'close.png'),
+      ]);
+      await poster(join(tmp, 'open.png'), `${chapter.id}-open`);
+      await poster(join(tmp, 'close.png'), `${chapter.id}-close`);
+      await rm(tmp, { recursive: true, force: true });
+    }
+  }
+
+  for (const chapter of CHAPTERS.filter((c) => c.ladders)) {
     const tmp = join(tmpRoot, chapter.id);
     await mkdir(tmp, { recursive: true });
 
@@ -129,26 +158,26 @@ async function main() {
     }
 
     if (!only) {
-      // 2. Posters. `open` is the still a reduced-motion visitor and the
-      //    <noscript> path see; `close` is the payoff the next section
-      //    inherits, and for chapter 3 it is also the System Explorer's X.
-      const poster = (src, base) =>
-        Promise.all([
-          sharp(src).resize({ width: 1600 }).avif({ quality: 52, effort: 3 }).toFile(join(posterDir, `${base}.avif`)),
-          sharp(src).resize({ width: 1600 }).webp({ quality: 74 }).toFile(join(posterDir, `${base}.webp`)),
-          sharp(src).resize({ width: 1600 }).jpeg({ quality: 80, mozjpeg: true }).toFile(join(posterDir, `${base}.jpg`)),
-        ]);
       await poster(join(tmp, sources[0]), `${chapter.id}-open`);
       await poster(join(tmp, sources[total - 1]), `${chapter.id}-close`);
 
-      // 3. A muted fast-start copy for the "pokreni film" player. Nothing
-      //    scrubs this; it exists so the films can be watched straight through.
-      await ffmpegRun([
-        '-i', join(srcDir, chapter.file), '-an',
-        '-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-pix_fmt', 'yuv420p',
-        '-movflags', '+faststart',
-        join(filmDir, `${chapter.id}.mp4`),
-      ]);
+      // One still per narrative beat. With motion switched off these are the
+      // film — so they are sampled from the reel itself rather than redrawn.
+      for (const [i, frame] of (chapter.beats ?? []).entries()) {
+        const src = sources[Math.min(frame, total - 1)];
+        if (src) await poster(join(tmp, src), `${chapter.id}-beat-${i + 1}`);
+      }
+
+      // A muted fast-start copy, so the master can also be watched straight
+      // through. Nothing scrubs this — the ladders do that.
+      if (chapter.hero) {
+        await ffmpegRun([
+          '-i', join(srcDir, chapter.file), '-an',
+          '-c:v', 'libx264', '-crf', '25', '-preset', 'slow', '-pix_fmt', 'yuv420p',
+          '-movflags', '+faststart',
+          join(filmDir, `${chapter.id}.mp4`),
+        ]);
+      }
     }
 
     manifestChapters.push({

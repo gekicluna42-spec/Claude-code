@@ -13,6 +13,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 
 import { Director } from './cinema/director';
+import { FILM_END, KEYS, SCROLL_VH, SCROLL_VH_MOBILE, SEGMENTS } from './cinema/timeline';
 import { $, deviceTier, prefersReducedMotion } from './lib/dom';
 import { initReveal, markReveals } from './lib/reveal';
 import { initAudit } from './sections/audit';
@@ -119,9 +120,19 @@ async function main(): Promise<void> {
 
   // Exposed for the QA harness, which asserts on real painted frame indices
   // rather than on scroll position.
+  // Exposed for the QA harness. It asserts against the film's real
+  // configuration rather than numbers copied into the test, so retiming the
+  // film cannot leave the checks quietly measuring the wrong thing.
   (window as unknown as { __dx?: unknown }).__dx = {
     state: () => director.state,
     segments: () => director.segmentStarts(),
+    film: () => ({
+      keys: KEYS,
+      filmEnd: FILM_END,
+      scrollVh: SCROLL_VH,
+      scrollVhMobile: SCROLL_VH_MOBILE,
+      beats: SEGMENTS.length,
+    }),
     reduced,
     tier,
   };

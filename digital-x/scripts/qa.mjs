@@ -141,19 +141,32 @@ async function checkFilm(page, viewport) {
     return stateOf(page);
   };
 
-  const total = (await stateOf(page))?.frames ?? 0;
-  check('the reel spans all four clips', total >= 380, `${total} frames`);
+  // Everything below is measured against the film's own configuration, read
+  // from the page, so retiming the film retunes the checks with it.
+  const film = await page.evaluate(() => window.__dx?.film?.() ?? null);
+  check('the film exposes its configuration', Boolean(film?.keys?.length));
+  if (!film) return;
 
-  // The film is deliberately long. Assert that, rather than letting a future
-  // "tidy up" quietly halve it.
-  check('the film is a long, slow run',
-    geometry.height >= viewport.height * (viewport.width <= 860 ? 10 : 16),
-    `${Math.round(geometry.height / viewport.height)} viewports`);
+  const total = (await stateOf(page))?.frames ?? 0;
+  const nominal = film.keys[film.keys.length - 1].frame + 1;
+  check('the reel carries the whole film', total >= nominal * 0.5 && total <= nominal,
+    `${total} of a nominal ${nominal}`);
+
+  // The brief asks for 140-180 frames over 400-550vh. Assert the band rather
+  // than a number, so the film can be retimed inside it but not out of it.
+  check('the hero is 140-180 frames', nominal >= 140 && nominal <= 180, `${nominal} frames`);
+  const vh = viewport.width <= 860 ? film.scrollVhMobile : film.scrollVh;
+  check('the film runs 400-550vh on desktop',
+    viewport.width <= 860 || (film.scrollVh >= 400 && film.scrollVh <= 550),
+    `${film.scrollVh}vh`);
+  check('the film section matches its configured length',
+    Math.abs(geometry.height / viewport.height - vh / 100) < 0.35,
+    `${(geometry.height / viewport.height).toFixed(1)} viewports, configured ${vh}vh`);
 
   const a = (await seek(0.03)).frame;
   const b = (await seek(0.2)).frame;
   const c = (await seek(0.7)).frame;
-  const d = (await seek(0.96)).frame;
+  const d = (await seek(Math.min(0.99, film.filmEnd + 0.03))).frame;
   const back = (await seek(0.2)).frame;
 
   check('the film scrubs forward across its whole length',
@@ -161,17 +174,27 @@ async function checkFilm(page, viewport) {
   check('the film scrubs in reverse', Math.abs(back - b) <= 4, `${d} → ${back} (want ≈${b})`);
   check('the film reaches its final frame', d >= total - 6, `${d} of ${total - 1}`);
 
-  // The hold. Film time stops between 0.36 and 0.43 while scroll continues.
-  const beforeHold = (await seek(0.30)).frame;
-  const holdStart = (await seek(0.365)).frame;
-  const holdMid = (await seek(0.40)).frame;
-  const holdEnd = (await seek(0.428)).frame;
-  const afterHold = (await seek(0.50)).frame;
-  check('the detonation reaches its peak', holdStart > beforeHold + 4, `${beforeHold} → ${holdStart}`);
-  check('the peak HOLDS while scroll continues',
-    Math.abs(holdMid - holdStart) <= 2 && Math.abs(holdEnd - holdStart) <= 2,
-    `frames ${holdStart} / ${holdMid} / ${holdEnd}`);
-  check('the reversal resumes after the hold', afterHold > holdEnd + 4, `${holdEnd} → ${afterHold}`);
+  // The hold: two consecutive keys carrying the same frame. Find it in the
+  // film's own timeline rather than assuming where it is.
+  const holdAt = film.keys.findIndex(
+    (k, i) => i > 0 && k.frame === film.keys[i - 1].frame && k.at < film.filmEnd,
+  );
+  check('the film has a hold', holdAt > 0);
+  if (holdAt > 0) {
+    const from = film.keys[holdAt - 1].at;
+    const to = film.keys[holdAt].at;
+    const inset = (to - from) * 0.12;
+    const before = (await seek(Math.max(0, from - (to - from) * 1.2))).frame;
+    const holdStart = (await seek(from + inset)).frame;
+    const holdMid = (await seek((from + to) / 2)).frame;
+    const holdEnd = (await seek(to - inset)).frame;
+    const after = (await seek(Math.min(film.filmEnd, to + (to - from)))).frame;
+    check('the film reaches the held moment', holdStart > before + 2, `${before} → ${holdStart}`);
+    check('it HOLDS while scroll continues',
+      Math.abs(holdMid - holdStart) <= 2 && Math.abs(holdEnd - holdStart) <= 2,
+      `frames ${holdStart} / ${holdMid} / ${holdEnd}`);
+    check('the film resumes after the hold', after > holdEnd + 2, `${holdEnd} → ${after}`);
+  }
 
   // The single-file preview ships one ladder on purpose, so only assert the
   // upgrade where a wider one exists to upgrade to.
@@ -493,11 +516,13 @@ async function checkMobile(page) {
   check('mobile: explorer becomes a scrollable rail', layout.tabsScroll === 'auto' || layout.tabsScroll === 'scroll',
     String(layout.tabsScroll));
   check('mobile: growth path is stepped, not scrubbed', layout.railHidden);
-  // The film still has to be a long run on a phone, but a deliberately shorter
-  // one than on desktop — 1200vh against 1900vh.
+  // The phone gets a deliberately shorter run than the desktop, not the same
+  // one squeezed. Compare the two configured lengths rather than a constant.
+  const film = await page.evaluate(() => window.__dx?.film?.() ?? null);
   check('mobile: the film uses the shorter mobile run',
-    layout.filmViewports >= 10 && layout.filmViewports <= 14,
-    `${layout.filmViewports.toFixed(1)} viewports`);
+    Boolean(film) && film.scrollVhMobile < film.scrollVh &&
+      Math.abs(layout.filmViewports - film.scrollVhMobile / 100) < 0.35,
+    `${layout.filmViewports.toFixed(1)} viewports, configured ${film?.scrollVhMobile}vh`);
   check('mobile: no horizontal overflow', layout.overflow);
 
   // The sheet has to actually open and close.
@@ -525,22 +550,33 @@ async function checkReducedMotion(browser, motionHeight) {
         return Boolean(img && img.complete && img.naturalWidth > 0);
       })(),
       // The rest are lazy on purpose; what matters is that each has a real src.
-      stripWired: shots.length === 4 && shots.every((img) => img.getAttribute('src') && img.alt),
+      shots: shots.length,
+      stripWired: shots.length > 0 && shots.every((img) => img.getAttribute('src') && img.alt),
       heroVisible: Number(getComputedStyle(film.querySelector('.film__hero')).opacity) > 0.9,
       gate: document.documentElement.classList.contains('film-running'),
       height: document.documentElement.scrollHeight,
+      filmViewports: film.offsetHeight / window.innerHeight,
+      stagePosition: getComputedStyle(film.querySelector('.film__stage')).position,
       state: window.__dx?.reduced,
       tabs: document.querySelectorAll('[role="tab"]').length,
     };
   });
   check('reduced motion: the film becomes stills', result.still && result.canvasHidden);
+  const beats = await page.evaluate(() => window.__dx?.film?.().beats ?? 0);
   check('reduced motion: the opening still is painted and the strip is wired',
-    result.firstPoster && result.stripWired);
+    result.firstPoster && result.stripWired && result.shots === beats,
+    `${result.shots} stills for ${beats} beats`);
   check('reduced motion: the hero is shown immediately, not gated',
     result.heroVisible && !result.gate);
-  check('reduced motion: the long film scroll is gone',
-    result.height < motionHeight * 0.6,
-    `${result.height} vs ${motionHeight} with motion`);
+  // The point is not that the page got shorter overall — it is that the film's
+  // pinned scroll run no longer exists. The stage stops being sticky, and the
+  // section collapses to its content instead of its configured scroll length.
+  const configured = (await page.evaluate(() => window.__dx?.film?.().scrollVh)) ?? 0;
+  check("reduced motion: the film's pinned scroll run is gone",
+    result.stagePosition !== 'sticky' &&
+      result.filmViewports * 100 < configured * 0.5 &&
+      result.height < motionHeight,
+    `stage ${result.stagePosition}, ${Math.round(result.filmViewports * 100)}vh of a configured ${configured}vh`);
   check('reduced motion: interactive sections still present', result.tabs === 6);
   check('reduced motion: no console errors', errors.length === 0, errors.slice(0, 3).join(' | '));
 
@@ -567,10 +603,9 @@ for (const viewport of VIEWPORTS) {
   console.log(`\n── ${viewport.name} (${viewport.width}×${viewport.height}) ──`);
   const { page, errors } = await openPage(browser, viewport);
 
-  motionHeight = Math.max(
-    motionHeight,
-    await page.evaluate(() => document.documentElement.scrollHeight),
-  );
+  if (viewport.name === 'desktop') {
+    motionHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  }
   if (viewport.name === 'desktop') await checkFilm(page, viewport);
   await checkGate(page, viewport);
   await checkExplorer(page);

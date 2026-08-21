@@ -4,64 +4,37 @@
     {
       "dir": "sm",
       "width": 640,
-      "webp": true,
-      "stride": 1
+      "webp": true
     },
     {
       "dir": "lg",
       "width": 1280,
-      "webp": false,
-      "stride": 1
+      "webp": false
     },
     {
       "dir": "xs",
       "width": 480,
-      "webp": false,
-      "stride": 2
+      "webp": false
     }
   ],
   "chapters": [
     {
-      "id": "signal",
+      "id": "signal-engine",
+      "hero": true,
       "source": {
-        "frames": 192,
-        "fps": 24,
-        "duration": 8
+        "frames": 160,
+        "fps": 10,
+        "duration": 16
       },
       "counts": {
-        "sm": 192,
-        "lg": 192,
-        "xs": 96
-      }
-    },
-    {
-      "id": "reveal",
-      "source": {
-        "frames": 192,
-        "fps": 24,
-        "duration": 8
-      },
-      "counts": {
-        "sm": 192,
-        "lg": 192,
-        "xs": 96
+        "sm": 160,
+        "lg": 160,
+        "xs": 160
       }
     },
     {
       "id": "system",
-      "source": {
-        "frames": 192,
-        "fps": 24,
-        "duration": 8
-      },
-      "counts": {
-        "sm": 192,
-        "lg": 192,
-        "xs": 96
-      }
-    },
-    {
-      "id": "inside",
+      "hero": false,
       "source": {
         "frames": 192,
         "fps": 24,

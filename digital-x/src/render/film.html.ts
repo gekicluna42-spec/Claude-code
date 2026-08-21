@@ -30,22 +30,23 @@ const MARKS: { id: string; from: number; to: number }[] = [
   { id: 'inside', from: 0.75, to: 1 },
 ];
 
-/** The four stills, shown stacked when the film cannot or should not play. */
+/**
+ * One still per beat, shown stacked when the film cannot or should not play.
+ * Sampled from the reel itself by scripts/frames.mjs, so this is the film
+ * rather than a set of stand-ins for it.
+ */
 const filmstrip = (): string =>
   `<ol class="strip" aria-label="Kadrovi iz Digital X filma">
-    ${map(SEGMENTS, (segment, i) => {
-      const still = i === 0 ? 'signal-open' : `${segment.id}-close`;
-      return `<li class="strip__shot">
-        ${poster(still, `${segment.title} — kadar iz Digital X filma.`, 'strip__poster', i === 0)}
-        <p class="strip__label"><span>${esc(segment.numeral)}</span>${esc(segment.title)}</p>
-      </li>`;
-    })}
+    ${map(SEGMENTS, (segment, i) => `<li class="strip__shot">
+      ${poster(`signal-engine-beat-${i + 1}`, `${segment.title} — kadar iz Digital X filma.`, 'strip__poster', i === 0)}
+      <p class="strip__label"><span>${esc(segment.numeral)}</span>${esc(segment.title)}</p>
+    </li>`)}
   </ol>`;
 
 export const renderFilm = (): string => `
 <section class="film" id="film" data-film aria-label="Digital X cinematic">
   <div class="film__stage">
-    ${poster('signal-open', 'Razdvojeni digitalni sistemi u tamnom prostoru, sa X-oblikom u daljini.', 'film__poster', true)}
+    ${poster('signal-engine-open', 'Svjetlosne čestice u tamnom prostoru koje se organizuju prema udaljenom X-obliku.', 'film__poster', true)}
     <canvas class="film__canvas" data-film-canvas aria-hidden="true"></canvas>
     <div class="film__grade" aria-hidden="true"></div>
     <div class="film__vignette" aria-hidden="true"></div>
