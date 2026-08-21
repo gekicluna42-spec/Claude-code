@@ -150,8 +150,17 @@ export class Director {
 
     // Phase 2: the rest of the film, in order, at low priority, yielding
     // whenever the playhead has requests of its own outstanding.
+    //
+    // skip is 0, and has to be. It was 1 back when the opening clip was loaded
+    // in full behind the curtain and the filler's job started at clip two —
+    // but stage 1 now loads only CRITICAL_FRAMES of it, and the hero is a
+    // single clip, so skipping one clip skipped the entire film. The reel
+    // never held more than the ~90 frames the playhead window had pulled in,
+    // and scrubbing outside that window re-fetched. Nothing is loaded twice
+    // for the change: the filler skips clips that have settled, and prefetch
+    // ignores frames already resident or in flight.
     this.stopFiller = fillInBackground(this.reel, {
-      skip: 1,
+      skip: 0,
       busy: () => (this.reel?.clips.some((c) => c.inflight > 0) ?? false) && this.moving,
       onProgress: onBufferProgress,
     });

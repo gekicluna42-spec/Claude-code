@@ -48,6 +48,15 @@ export async function initExplorer(options: ExplorerOptions): Promise<void> {
     panels.forEach((panel, i) => {
       panel.hidden = i !== selected;
     });
+    // The turn takes a second and a half. Restarting the panel's entrance
+    // alongside it stops the copy from landing before the picture has moved —
+    // without the class the swap reads as a jump cut whatever the camera does.
+    const panel = panels[selected];
+    if (panel && !prefersReducedMotion()) {
+      panel.classList.remove('is-entering');
+      void panel.offsetWidth; // reflow, so the animation restarts
+      panel.classList.add('is-entering');
+    }
     dots.forEach((dot, i) => dot.classList.toggle('is-on', i === selected));
     if (orbitFill) {
       orbitFill.style.width = tabs.length > 1 ? `${(selected / (tabs.length - 1)) * 100}%` : '0';
@@ -117,11 +126,23 @@ export async function initExplorer(options: ExplorerOptions): Promise<void> {
     const at = { frame: lo + (hi - lo) * Number(tabs[0]!.dataset.orbit ?? 0) };
     const draw = () => player.render(at.frame);
 
+    /*
+     * The turn. Duration scales with how far the camera has to travel, so
+     * stepping to the neighbouring discipline is quick and jumping from the
+     * first to the last is a real move rather than the same 0.9s blur — which
+     * is what made every selection feel identical. power2.inOut over
+     * power3.inOut keeps the middle of the move readable instead of spending
+     * most of the time easing.
+     */
+    const span = hi - lo || 1;
     scrub = (orbit: number) => {
+      const target = lo + span * orbit;
+      const travel = Math.abs(target - at.frame) / span;
       gsap.to(at, {
-        frame: lo + (hi - lo) * orbit,
-        duration: 0.9,
-        ease: 'power3.inOut',
+        frame: target,
+        duration: 0.85 + travel * 1.15,
+        ease: 'power2.inOut',
+        overwrite: true,
         onUpdate: draw,
       });
     };

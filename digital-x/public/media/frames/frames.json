@@ -3,7 +3,7 @@
   "ladders": [
     {
       "dir": "sm",
-      "width": 640,
+      "width": 768,
       "webp": true
     },
     {
@@ -13,7 +13,7 @@
     },
     {
       "dir": "xs",
-      "width": 480,
+      "width": 860,
       "webp": false
     }
   ],
@@ -22,14 +22,14 @@
       "id": "signal-engine",
       "hero": true,
       "source": {
-        "frames": 160,
-        "fps": 10,
-        "duration": 16
+        "frames": 241,
+        "fps": 15,
+        "duration": 16.066666666666666
       },
       "counts": {
-        "sm": 160,
-        "lg": 160,
-        "xs": 160
+        "sm": 241,
+        "lg": 241,
+        "xs": 241
       }
     },
     {
@@ -43,7 +43,7 @@
       "counts": {
         "sm": 192,
         "lg": 192,
-        "xs": 96
+        "xs": 192
       }
     }
   ]

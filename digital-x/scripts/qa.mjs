@@ -152,13 +152,19 @@ async function checkFilm(page, viewport) {
   check('the reel carries the whole film', total >= nominal * 0.5 && total <= nominal,
     `${total} of a nominal ${nominal}`);
 
-  // The brief asks for 140-180 frames over 400-550vh. Assert the band rather
-  // than a number, so the film can be retimed inside it but not out of it.
-  check('the hero is 140-180 frames', nominal >= 140 && nominal <= 180, `${nominal} frames`);
+  // The brief asked for 140-180 frames over 400-550vh; the film was then
+  // deliberately slowed past that, so the band moved with it. What the band is
+  // actually protecting is the RATIO — scroll spent per frame. Too low and the
+  // scrub steps visibly; too high and the visitor is scrolling through a still.
+  check('the hero is 200-320 frames', nominal >= 200 && nominal <= 320, `${nominal} frames`);
   const vh = viewport.width <= 860 ? film.scrollVhMobile : film.scrollVh;
-  check('the film runs 400-550vh on desktop',
-    viewport.width <= 860 || (film.scrollVh >= 400 && film.scrollVh <= 550),
+  check('the film runs 800-1000vh on desktop',
+    viewport.width <= 860 || (film.scrollVh >= 800 && film.scrollVh <= 1000),
     `${film.scrollVh}vh`);
+  const vhPerFrame = vh / nominal;
+  check('the scrub stays between 2 and 5vh per frame',
+    vhPerFrame >= 2 && vhPerFrame <= 5,
+    `${vhPerFrame.toFixed(2)}vh per frame at ${vh}vh`);
   check('the film section matches its configured length',
     Math.abs(geometry.height / viewport.height - vh / 100) < 0.35,
     `${(geometry.height / viewport.height).toFixed(1)} viewports, configured ${vh}vh`);
@@ -208,11 +214,22 @@ async function checkFilm(page, viewport) {
 
   // Preloading: by the time the visitor is a third of the way in, the rest of
   // the reel should be arriving rather than being fetched frame by frame.
+  //
+  // Poll to convergence rather than sampling once at a fixed 2.5s. A denser,
+  // higher-quality reel takes longer to become fully resident — 241 AVIFs is
+  // decode-bound, not bandwidth-bound — and a single early sample would fail
+  // a filler that is working perfectly. Polling also catches the failure the
+  // one-shot sample never could: a filler that stalls partway and stays there.
   await seek(0.34);
-  await sleep(2500);
-  const buffered = (await stateOf(page))?.buffered ?? 0;
+  const began = Date.now();
+  let buffered = 0;
+  while (Date.now() - began < 15000) {
+    buffered = (await stateOf(page))?.buffered ?? 0;
+    if (buffered > 0.9) break;
+    await sleep(400);
+  }
   check('the rest of the film preloads behind the visitor', buffered > 0.9,
-    `${Math.round(buffered * 100)}% buffered`);
+    `${Math.round(buffered * 100)}% buffered after ${((Date.now() - began) / 1000).toFixed(1)}s`);
 }
 
 /* ---- 2. Nothing speaks until the film is over ---------------------------- */
@@ -402,36 +419,67 @@ async function checkExplorer(page) {
   const tabs = await page.$$('[data-explorer] [role="tab"]');
   check('System Explorer has six disciplines', tabs.length === 6, `found ${tabs.length}`);
 
-  const frames = [];
+  /*
+     A signature that can tell a real turn from a nudge. Selecting a discipline
+     used to move the camera about ten frames, which passes a "these renders
+     differ" test and still looks to a visitor like nothing happened — the
+     complaint that widened the arc. So sample the canvas into a coarse luma
+     grid and measure how FAR apart neighbouring selections are, not just that
+     they are not identical.
+   */
+  const grid = [];
   for (const [i, tab] of tabs.entries()) {
     await tab.click();
-    await sleep(1100);
+    await sleep(2600); // the turn now runs up to 2s, plus the panel entrance
     const result = await page.evaluate((index) => {
       const root = document.querySelector('[data-explorer]');
       const tabs = Array.from(root.querySelectorAll('[role="tab"]'));
       const panels = Array.from(root.querySelectorAll('[role="tabpanel"]'));
       const canvas = root.querySelector('[data-explorer-canvas]');
       const ctx = canvas?.getContext('2d');
-      let signature = 0;
+      const cells = [];
       if (ctx && canvas.width) {
         const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        for (let p = 0; p < d.length; p += 4001) signature += d[p];
+        const cols = 16;
+        const rows = 16;
+        for (let cy = 0; cy < rows; cy++) {
+          for (let cx = 0; cx < cols; cx++) {
+            const x = Math.floor(((cx + 0.5) / cols) * canvas.width);
+            const y = Math.floor(((cy + 0.5) / rows) * canvas.height);
+            const p = (y * canvas.width + x) * 4;
+            cells.push((d[p] * 0.3 + d[p + 1] * 0.59 + d[p + 2] * 0.11) | 0);
+          }
+        }
       }
       return {
         selected: tabs[index].getAttribute('aria-selected') === 'true',
         panelShown: !panels[index].hidden,
         othersHidden: panels.every((p, j) => (j === index ? !p.hidden : p.hidden)),
         text: panels[index].textContent.trim().length,
-        signature,
+        cells,
       };
     }, i);
     check(`explorer tab ${i + 1}: selects and reveals its panel`,
       result.selected && result.panelShown && result.othersHidden && result.text > 60);
-    frames.push(result.signature);
+    grid.push(result.cells);
   }
-  const distinct = new Set(frames.filter((f) => f > 0));
-  check('the X actually rotates between disciplines', distinct.size >= 4,
-    `${distinct.size} distinct renders across 6 selections`);
+
+  const painted = grid.filter((c) => c.length && c.some((v) => v > 0));
+  const deltas = [];
+  for (let i = 1; i < painted.length; i++) {
+    const a = painted[i - 1];
+    const b = painted[i];
+    let sum = 0;
+    for (let p = 0; p < a.length; p++) sum += Math.abs(a[p] - b[p]);
+    deltas.push(sum / a.length);
+  }
+  const worst = deltas.length ? Math.min(...deltas) : 0;
+  const mean = deltas.length ? deltas.reduce((s, d) => s + d, 0) / deltas.length : 0;
+  check('the X actually rotates between disciplines',
+    painted.length >= 5 && new Set(painted.map((c) => c.join(','))).size >= 5,
+    `${new Set(painted.map((c) => c.join(','))).size} distinct renders across 6 selections`);
+  check('every step of the orbit is a visible move',
+    worst >= 4, `weakest neighbouring step ${worst.toFixed(1)}, mean ${mean.toFixed(1)} luma`);
 
   // Keyboard. Roving tabindex means focus belongs to whichever tab is selected,
   // so select the first one, then walk right and back with the arrow keys.

@@ -31,35 +31,43 @@ interface FilmConfig {
 }
 
 /**
- * The Seedance master: one 16-second flight, 160 frames, 520vh.
+ * The Seedance master: one 16-second flight, 241 frames, 900vh.
  *
- * About 2.8vh of scroll per frame, roughly a third the speed of a conventional
- * scroll-scrub. The threshold hold costs 35vh and no frames at all: the camera
- * sits at the mouth of the X before going in.
+ * The film is sampled at 15fps rather than 10 and given 900vh rather than 520,
+ * which are the two halves of the same decision. 900vh over 16 seconds of film
+ * is about 56vh of scroll per second of picture — the camera moves a little
+ * over half as fast as it did, so the particles organising, the network wiring
+ * itself and the final rebuild all get long enough to be watched rather than
+ * passed. Sampling denser is what keeps that legible: at 240 frames a beat
+ * costs roughly 3.2vh per frame, close to what it cost before, so slowing the
+ * camera down does not turn the scrub into a slideshow.
+ *
+ * The threshold hold costs 76vh and no frames at all: the camera sits at the
+ * mouth of the X while the visitor keeps scrolling, then goes in.
  */
 const SIGNAL_ENGINE: FilmConfig = {
   clips: ['signal-engine'],
-  totalFrames: 160,
+  totalFrames: 241, // 16.07s at 15fps — the extractor's count, not a round one
   segments: [
-    { id: 'signal', numeral: '01', title: 'Signal', from: 0, to: 29 },
-    { id: 'core', numeral: '02', title: 'X Core', from: 30, to: 59 },
-    { id: 'intelligence', numeral: '03', title: 'Intelligence', from: 60, to: 99 },
-    { id: 'authority', numeral: '04', title: 'Authority', from: 100, to: 129 },
-    { id: 'demand', numeral: '05', title: 'Demand', from: 130, to: 159 },
+    { id: 'signal', numeral: '01', title: 'Signal', from: 0, to: 43 },
+    { id: 'core', numeral: '02', title: 'X Core', from: 44, to: 89 },
+    { id: 'intelligence', numeral: '03', title: 'Intelligence', from: 90, to: 149 },
+    { id: 'authority', numeral: '04', title: 'Authority', from: 150, to: 194 },
+    { id: 'demand', numeral: '05', title: 'Demand', from: 195, to: 240 },
   ],
   keys: [
     { at: 0.0, frame: 0 },
-    { at: 0.163, frame: 29 }, // 01 signals organise and converge
-    { at: 0.317, frame: 55 }, // 02 the X Core resolves; camera at the threshold
-    { at: 0.385, frame: 55 }, //    HOLD: 35vh of scroll, zero frames
-    { at: 0.606, frame: 99 }, // 03 inside — chaos becomes structured intelligence
-    { at: 0.763, frame: 129 }, // 04 the authority constellation opens out
-    { at: 0.92, frame: 159 }, // 05 particles rebuild the completed X
-    { at: 1.0, frame: 159 }, //    the film is over; the title arrives
+    { at: 0.15, frame: 44 }, // 01 signals organise and converge
+    { at: 0.29, frame: 82 }, // 02 the X Core resolves; camera at the threshold
+    { at: 0.375, frame: 82 }, //    HOLD: 76vh of scroll, zero frames
+    { at: 0.62, frame: 149 }, // 03 inside — chaos becomes structured intelligence
+    { at: 0.79, frame: 194 }, // 04 the authority constellation opens out
+    { at: 0.94, frame: 240 }, // 05 particles rebuild the completed X
+    { at: 1.0, frame: 240 }, //    the film is over; the title arrives
   ],
-  filmEnd: 0.92,
-  scrollVh: 520,
-  scrollVhMobile: 380,
+  filmEnd: 0.94,
+  scrollVh: 900,
+  scrollVhMobile: 640,
 };
 
 /** The four 8-second clips played as one 768-frame reel. The earlier hero. */
@@ -139,5 +147,11 @@ export function segmentOf(frame: number) {
  * The stretch of the older `system` clip in which the X is whole and centred,
  * in that clip's own frame numbers. The System Explorer scrubs inside this
  * range, so selecting a discipline rotates the real structure.
+ *
+ * The arc is the full 95 frames the structure stays readable for, not the 52
+ * it used to be. The disciplines sit at orbit 0.06 … 0.86 (see
+ * src/data/content.ts), so this range puts the first at frame 6 and the last
+ * at 82 — the bare X at one end, the fully panelled system at the other, and
+ * about fifteen frames of real rotation between neighbours instead of ten.
  */
-export const EXPLORER_RANGE: [number, number] = [20, 72];
+export const EXPLORER_RANGE: [number, number] = [0, 95];
