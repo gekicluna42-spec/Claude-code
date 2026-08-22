@@ -180,33 +180,61 @@ async function checkFilm(page, viewport) {
   check('the film scrubs in reverse', Math.abs(back - b) <= 4, `${d} → ${back} (want ≈${b})`);
   check('the film reaches its final frame', d >= total - 6, `${d} of ${total - 1}`);
 
-  // The hold: two consecutive keys carrying the same frame. Find it in the
-  // film's own timeline rather than assuming where it is.
-  const holdAt = film.keys.findIndex(
-    (k, i) => i > 0 && k.frame === film.keys[i - 1].frame && k.at < film.filmEnd,
-  );
-  check('the film has a hold', holdAt > 0);
-  if (holdAt > 0) {
-    const from = film.keys[holdAt - 1].at;
-    const to = film.keys[holdAt].at;
-    const inset = (to - from) * 0.12;
-    const before = (await seek(Math.max(0, from - (to - from) * 1.2))).frame;
-    const holdStart = (await seek(from + inset)).frame;
-    const holdMid = (await seek((from + to) / 2)).frame;
-    const holdEnd = (await seek(to - inset)).frame;
-    const after = (await seek(Math.min(film.filmEnd, to + (to - from)))).frame;
-    check('the film reaches the held moment', holdStart > before + 2, `${before} → ${holdStart}`);
-    check('it HOLDS while scroll continues',
-      Math.abs(holdMid - holdStart) <= 2 && Math.abs(holdEnd - holdStart) <= 2,
-      `frames ${holdStart} / ${holdMid} / ${holdEnd}`);
-    check('the film resumes after the hold', after > holdEnd + 2, `${holdEnd} → ${after}`);
-  }
+  /*
+     THE FILM MUST NEVER STALL.
 
-  // The single-file preview ships one ladder on purpose, so only assert the
-  // upgrade where a wider one exists to upgrade to.
+     There used to be a deliberate hold here — two keys on the same frame, the
+     camera pausing at the mouth of the X — and these checks asserted it was
+     working. It was working, and it was still wrong: scrolling most of a
+     screen while the picture sits still does not read as a beat, it reads as
+     the page having frozen. So the assertion is inverted. Nothing before the
+     title may stall, in the timeline or on the glass.
+   */
+  const filmKeys = film.keys.filter((k, i) => i === 0 || k.at <= film.filmEnd + 1e-6);
+  const stalled = filmKeys.filter((k, i) => i > 0 && k.frame === filmKeys[i - 1].frame);
+  check('no stretch of the film holds on one frame', stalled.length === 0,
+    stalled.length ? `${stalled.length} key pair(s) share a frame` : 'none');
+
+  // Per-stretch pacing. The aggregate ratio above is an average and would sit
+  // happily inside its band with one frozen passage paid for by a racing one.
+  const paces = [];
+  for (let i = 1; i < filmKeys.length; i++) {
+    const frames = filmKeys[i].frame - filmKeys[i - 1].frame;
+    const scroll = (filmKeys[i].at - filmKeys[i - 1].at) * vh;
+    if (frames > 0) paces.push(scroll / frames);
+  }
+  const slowest = paces.length ? Math.max(...paces) : Infinity;
+  check('the slowest stretch still advances at least a frame per 5.5vh',
+    slowest <= 5.5, `${slowest.toFixed(2)}vh per frame`);
+
+  // And empirically, because a timeline that reads well can still stall on the
+  // glass — a gap in the ladder repaints the nearest resident frame instead.
+  const steps = 44;
+  let held = 0;
+  let worstRun = 0;
+  let run = 0;
+  let previous = -1;
+  for (let i = 0; i <= steps; i++) {
+    const frame = (await seek((i / steps) * film.filmEnd)).frame;
+    if (i > 0 && frame <= previous) {
+      held++;
+      worstRun = Math.max(worstRun, ++run);
+    } else {
+      run = 0;
+    }
+    previous = frame;
+  }
+  check('the painted frame advances at every step of the film',
+    held === 0, `${held} of ${steps} steps painted no new frame (longest run ${worstRun})`);
+
+  // Desktop only, and both halves of that matter. The single-file preview
+  // ships one ladder on purpose, so there has to be a wider one to upgrade to;
+  // and the upgrade is gated on device tier, not width — a tablet resolves to
+  // the low tier and deliberately keeps the narrow ladder rather than pulling
+  // 1280px frames onto a device that cannot show them.
   const ladders = await page.evaluate(() =>
     (window.__DX_FRAMES__?.ladders ?? []).map((l) => l.dir));
-  if (!viewport.mobile && (!ladders.length || ladders.includes('lg'))) {
+  if (viewport.name === 'desktop' && (!ladders.length || ladders.includes('lg'))) {
     await seek(0.5);
     check('the film upgrades to the wide frame ladder',
       (await stateOf(page))?.ladder === 'lg', String((await stateOf(page))?.ladder));
@@ -772,7 +800,11 @@ for (const viewport of VIEWPORTS) {
   if (viewport.name === 'desktop') {
     motionHeight = await page.evaluate(() => document.documentElement.scrollHeight);
   }
-  if (viewport.name === 'desktop') await checkFilm(page, viewport);
+  // Every viewport, not just desktop. Mobile runs the film over a different
+  // scroll length, so its pacing is a different set of numbers — and a phone
+  // is where a stall was actually noticed. checkFilm already reads the length
+  // for the viewport it is given and skips the desktop-only ladder upgrade.
+  await checkFilm(page, viewport);
   await checkGate(page, viewport);
   if (viewport.name === 'desktop') await checkEngine(page);
   await checkExplorer(page);

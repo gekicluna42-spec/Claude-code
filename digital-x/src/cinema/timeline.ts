@@ -42,8 +42,17 @@ interface FilmConfig {
  * costs roughly 3.2vh per frame, close to what it cost before, so slowing the
  * camera down does not turn the scrub into a slideshow.
  *
- * The threshold hold costs 76vh and no frames at all: the camera sits at the
- * mouth of the X while the visitor keeps scrolling, then goes in.
+ * NO STRETCH OF THE FILM EVER STOPS. The threshold at the mouth of the X used
+ * to be a true hold — two keys on the same frame, 76vh of scroll buying zero
+ * frames — on the theory that the camera pausing before it goes in is a beat.
+ * In the hand it is not a beat, it is a bug: the visitor scrolls, the picture
+ * does not move, and the page reads as frozen. It is now a DECELERATION. The
+ * threshold is the slowest passage in the film at about 4.8vh per frame
+ * against 3.2 either side, so the camera visibly eases off and then
+ * accelerates in — and never once stops.
+ *
+ * The only key pair that shares a frame is the last one, where the film is
+ * genuinely over and the hero title is arriving over the final frame.
  */
 const SIGNAL_ENGINE: FilmConfig = {
   clips: ['signal-engine'],
@@ -56,14 +65,17 @@ const SIGNAL_ENGINE: FilmConfig = {
     { id: 'demand', numeral: '05', title: 'Demand', from: 195, to: 240 },
   ],
   keys: [
+    // The trailing number is what the stretch ENDING at that key costs in
+    // scroll per frame, at 900vh. Nothing is allowed above ~5: past that a
+    // frame holds for most of a screen of scrolling and the film looks stuck.
     { at: 0.0, frame: 0 },
-    { at: 0.15, frame: 44 }, // 01 signals organise and converge
-    { at: 0.29, frame: 82 }, // 02 the X Core resolves; camera at the threshold
-    { at: 0.375, frame: 82 }, //    HOLD: 76vh of scroll, zero frames
-    { at: 0.62, frame: 149 }, // 03 inside — chaos becomes structured intelligence
-    { at: 0.79, frame: 194 }, // 04 the authority constellation opens out
-    { at: 0.94, frame: 240 }, // 05 particles rebuild the completed X
-    { at: 1.0, frame: 240 }, //    the film is over; the title arrives
+    { at: 0.15, frame: 44 }, //  01 signals organise and converge      3.1
+    { at: 0.27, frame: 76 }, //  02 the X Core resolves                3.4
+    { at: 0.36, frame: 93 }, //     the threshold — eases off, goes in 4.8
+    { at: 0.62, frame: 149 }, // 03 chaos becomes structured intelligence 4.2
+    { at: 0.79, frame: 194 }, // 04 the authority constellation opens out 3.4
+    { at: 0.94, frame: 240 }, // 05 particles rebuild the completed X   2.9
+    { at: 1.0, frame: 240 }, //     the film is over; the title arrives
   ],
   filmEnd: 0.94,
   scrollVh: 900,
