@@ -1,0 +1,143 @@
+/**
+ * The WebGL surface.
+ *
+ * One canvas, fixed behind the entire document. It is decoration: it takes no
+ * pointer events, it is out of the accessibility tree, and it starts at zero
+ * opacity so a page whose GL context never arrives looks exactly like a page
+ * that never asked for one.
+ */
+.engine {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s var(--ease);
+}
+.engine.is-live { opacity: 1; }
+
+/* The film owns the viewport while it runs; the world waits behind it. */
+.film { position: relative; z-index: 1; }
+
+/*
+ * Sections sit above the canvas, but their grounds have to stay transparent or
+ * the world is simply hidden behind them. Only the seam markers keep an opaque
+ * fill, because they cover a rule.
+ */
+.section,
+.foot { position: relative; z-index: 1; background: transparent; }
+
+/*
+ * Panels and cards that were solid `--ink` now read against the field. A
+ * translucent ground keeps their contrast while letting the world show
+ * through — the page stays legible first and atmospheric second.
+ */
+.price,
+.showcase__item,
+.shop__item,
+.guide__link,
+.chain__step,
+.process__step,
+.growth__stage,
+.strip__shot,
+.contact__direct li,
+.explorer__tab,
+.panel {
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+}
+.price:hover,
+.showcase__item:hover,
+.shop__item:hover,
+.guide__link:hover {
+  background: color-mix(in srgb, var(--ink-2) 92%, transparent);
+}
+
+/*
+ * The discipline cells are the exception: each one has a Signal Object behind
+ * it, and an opaque ground would hide the thing it is meant to introduce. They
+ * are held open enough for the artifact to read as a presence at rest, and the
+ * copy still sits on near-black, so contrast is unaffected.
+ */
+.disc__item { background: color-mix(in srgb, var(--ink) 62%, transparent); }
+.disc__item:hover,
+.disc__item:focus-within { background: color-mix(in srgb, var(--ink) 46%, transparent); }
+
+/* ---- Authority Field ----------------------------------------------------- */
+
+.authority { display: grid; gap: clamp(2rem, 5vw, 4rem); align-items: center; }
+@media (min-width: 900px) { .authority { grid-template-columns: 1fr 1fr; } }
+
+.authority__lead {
+  font-size: var(--t-lead);
+  color: var(--ivory-dim);
+  margin-top: 1.5rem;
+}
+.authority__from {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--edge);
+  font: 500 var(--t-small)/1 var(--mono);
+  color: var(--ivory);
+}
+.authority__actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1.5rem; }
+
+/*
+ * The constellation's anchor. It has no content of its own — it exists so the
+ * WebGL layer has a box to align to, and so the section still reserves that
+ * space when there is no WebGL at all.
+ */
+.authority__field {
+  position: relative;
+  aspect-ratio: 1;
+  max-height: 60svh;
+  min-height: 16rem;
+}
+/* Without WebGL the space would read as a mistake, so it carries a quiet mark. */
+.authority__field::before {
+  content: '';
+  position: absolute;
+  inset: 22%;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--edge-1) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom left, transparent calc(50% - 0.5px), var(--edge-1) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  opacity: 0.7;
+  transition: opacity 0.8s var(--ease);
+}
+.engine.is-live ~ * .authority__field::before { opacity: 0; }
+
+@media (max-width: 860px) {
+  .authority__field { max-height: 34svh; min-height: 12rem; }
+}
+
+/* ---- Particle footer ------------------------------------------------------ */
+
+/*
+ * The footer closes on the mark at display scale — the same X the film ends
+ * on, one last time, as particles that scatter when the footer is entered and
+ * settle when it is left.
+ *
+ * The SVG underneath is the fallback, drawn at the same size, so a page
+ * without WebGL closes on the mark rather than on a gap.
+ */
+.foot__mark {
+  display: block;
+  position: relative;
+  width: clamp(5rem, 11vw, 9rem);
+  aspect-ratio: 1;
+  margin-bottom: 0.5rem;
+}
+.foot__mark .foot__x {
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  transition: opacity 0.8s var(--ease);
+}
+.engine.is-live ~ * .foot__mark .foot__x { opacity: 0; }
+
+.foot { min-height: 30rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .engine { display: none; }
+}

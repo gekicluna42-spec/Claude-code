@@ -1,0 +1,70 @@
+/**
+ * The palette is the films': near-black graphite, dark titanium, smoked glass,
+ * ice cyan and warm ivory. Every value here was sampled against the rendered
+ * frames so the interface and the picture read as one material.
+ */
+:root {
+  /* Ground */
+  --ink: #070708;
+  --ink-1: #0a0b0d;
+  --ink-2: #101116;
+  --ink-3: #16181e;
+
+  /* Structure — the X's titanium */
+  --titanium: #2b2f37;
+  --titanium-1: #3a3f49;
+  --edge: rgba(255, 255, 255, 0.08);
+  --edge-1: rgba(255, 255, 255, 0.14);
+  --glass: rgba(255, 255, 255, 0.035);
+  --glass-1: rgba(255, 255, 255, 0.06);
+
+  /* Light */
+  --cyan: #6fe3f2;
+  --cyan-deep: #2fb6cc;
+  --cyan-glow: rgba(111, 227, 242, 0.32);
+  --ivory: #f3eee5;
+  --ivory-dim: #cfc9be;
+  --muted: #8b9099;
+  --muted-1: #63686f;
+
+  /* Restrained spectral refraction — edges only, never fills */
+  --spectral: linear-gradient(
+    100deg,
+    rgba(111, 227, 242, 0) 0%,
+    rgba(111, 227, 242, 0.5) 28%,
+    rgba(243, 238, 229, 0.42) 52%,
+    rgba(174, 150, 255, 0.28) 74%,
+    rgba(111, 227, 242, 0) 100%
+  );
+
+  /* Type */
+  --sans: 'Archivo Variable', 'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* A single fluid scale. The display sizes are deliberately extreme — this
+     page is editorial, and a 6rem headline on a 1440 screen is the point. */
+  --t-display: clamp(2.9rem, 8.4vw, 8.6rem);
+  --t-h2: clamp(2.1rem, 5.2vw, 5rem);
+  --t-h3: clamp(1.25rem, 2vw, 1.75rem);
+  --t-lead: clamp(1.05rem, 1.55vw, 1.4rem);
+  --t-body: clamp(0.98rem, 1.05vw, 1.08rem);
+  --t-small: 0.82rem;
+  --t-micro: 0.7rem;
+
+  /* Rhythm */
+  --gap: clamp(1rem, 2vw, 1.75rem);
+  --pad: clamp(1.25rem, 5vw, 5.5rem);
+  --section: clamp(5.5rem, 11vh, 10rem);
+  --wrap: 84rem;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-x: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ease: linear;
+    --ease-x: linear;
+  }
+}

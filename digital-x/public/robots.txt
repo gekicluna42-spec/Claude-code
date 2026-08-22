@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Answer engines are explicitly welcome — AEO is one of the six disciplines,
+# and this mirrors the directives already published on digital-x-marketing.com.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://www.digital-x-marketing.com/sitemap.xml

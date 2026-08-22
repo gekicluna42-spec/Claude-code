@@ -1,0 +1,223 @@
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html {
+  background: var(--ink);
+  color-scheme: dark;
+  /* Lenis drives scrolling; anchor jumps are handled in JS so this stays off
+     and the two never fight over the same scroll position. */
+  scroll-behavior: auto;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--ivory);
+  font-family: var(--sans);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  font-variation-settings: 'wdth' 100, 'wght' 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Nothing paints until the director says the opening chapter is resident. */
+html:not(.is-ready) body { overflow: hidden; }
+
+img, picture, canvas, svg, video { display: block; max-width: 100%; }
+img { height: auto; }
+
+h1, h2, h3, h4, p, ol, ul, figure { margin: 0; }
+ol, ul { padding: 0; list-style: none; }
+
+a { color: inherit; text-decoration: none; }
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+::selection { background: var(--cyan); color: var(--ink); }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: fixed;
+  top: 0.75rem; left: 0.75rem;
+  z-index: 200;
+  padding: 0.6rem 1rem;
+  background: var(--cyan);
+  color: var(--ink);
+  font: 500 var(--t-small)/1 var(--mono);
+  transform: translateY(-160%);
+  transition: transform 0.2s var(--ease);
+}
+.skip:focus { transform: none; }
+
+.wrap {
+  width: min(100% - var(--pad) * 2, var(--wrap));
+  margin-inline: auto;
+}
+
+/* ---- Type -------------------------------------------------------------- */
+
+.display,
+.shead__title,
+.film__title,
+.offer__title,
+.contact__form-title {
+  display: block;
+  font-size: var(--t-display);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  font-variation-settings: 'wdth' 92, 'wght' 600;
+  text-wrap: balance;
+}
+
+.shead__title { font-size: var(--t-h2); }
+
+.line { display: block; overflow: hidden; }
+.line > span { display: block; }
+
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kicker--accent { color: var(--cyan); }
+.kicker__x { width: 0.7rem; height: 0.7rem; color: var(--cyan); flex: none; }
+
+.xmark { width: 1em; height: 1em; }
+
+/* ---- Buttons ----------------------------------------------------------- */
+
+.btn {
+  --btn-fg: var(--ivory);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.95rem 1.6rem;
+  font: 500 var(--t-small)/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--btn-fg);
+  border: 1px solid var(--edge-1);
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), background 0.3s var(--ease);
+  overflow: hidden;
+}
+/* The wipe is an X-diagonal, not a rectangle — the mark drives even this. */
+.btn::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: var(--spectral);
+  opacity: 0;
+  transform: translateX(-30%) skewX(-18deg);
+  transition: opacity 0.35s var(--ease), transform 0.55s var(--ease);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+.btn:hover::after { opacity: 0.5; transform: translateX(30%) skewX(-18deg); }
+.btn:hover { border-color: var(--cyan); }
+
+.btn--primary { background: var(--cyan); color: var(--ink); border-color: var(--cyan); }
+.btn--primary:hover { background: #8bebf7; color: var(--ink); }
+.btn--ghost { background: transparent; }
+.btn--sm { padding: 0.7rem 1.1rem; font-size: var(--t-micro); }
+.btn--block { width: 100%; }
+
+/* ---- Sections ---------------------------------------------------------- */
+
+.section {
+  position: relative;
+  padding-block: var(--section);
+  border-top: 1px solid var(--edge);
+}
+/* Each section boundary carries a small X seam, so the rhythm of the page is
+   the mark repeating rather than a stack of horizontal rules. */
+.section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  width: clamp(1.4rem, 2.4vw, 2rem);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 0.5px), var(--titanium-1) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px)),
+    linear-gradient(to bottom left, transparent calc(50% - 0.5px), var(--titanium-1) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
+  pointer-events: none;
+}
+/* The seam sits on the section's own ground so the rule passes behind it. */
+.section::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  width: clamp(2.6rem, 4vw, 3.4rem);
+  height: 1px;
+  transform: translate(-50%, -50%);
+  background: var(--ink);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.shead { max-width: 46rem; display: grid; gap: 1.1rem; }
+.shead--wide { max-width: 60rem; }
+.shead--accent .kicker { color: var(--cyan); }
+.shead__body { color: var(--muted); font-size: var(--t-lead); max-width: 42rem; }
+
+.ticks { display: grid; gap: 0.7rem; margin-top: 1.75rem; }
+.ticks li {
+  position: relative;
+  padding-left: 1.5rem;
+  color: var(--ivory-dim);
+}
+.ticks li::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0.62em;
+  width: 0.5rem; height: 0.5rem;
+  background:
+    linear-gradient(to bottom right, transparent 44%, var(--cyan) 44% 56%, transparent 56%),
+    linear-gradient(to bottom left, transparent 44%, var(--cyan) 44% 56%, transparent 56%);
+}
+.ticks--row {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  margin-top: 2.5rem;
+}
+
+/* Scroll-reveal. Applied by an IntersectionObserver, skipped under
+   prefers-reduced-motion so nothing is ever left invisible. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(1.6rem);
+  transition: opacity 0.8s var(--ease), transform 0.8s var(--ease);
+}
+[data-reveal].is-in { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+}
