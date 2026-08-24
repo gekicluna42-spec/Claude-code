@@ -1,49 +1,42 @@
 /**
- * Everything about this site that could NOT be verified against the live
- * digital-x-marketing.com, plus the switches Digital X controls.
+ * Canonical site URLs and CTA destinations for Digital X.
  *
- * The rule this file exists to enforce: an empty value is never rendered as a
- * broken link. Every consumer checks for '' and falls back to the verified
- * consultation path instead. Fill a value in and the corresponding CTA starts
- * pointing at the real destination — no other change needed.
- *
- * See README.md for the table of what each blank does.
+ * Keep all homepage and button links on routes that are known to exist. Where
+ * a dedicated detail page does not exist, link to the relevant homepage
+ * section instead of sending visitors to a 404.
  */
 
-/** Verified: the live site's own canonical host (robots.txt points at www). */
-export const ORIGIN = 'https://www.digital-x-marketing.com';
+/** Production host. */
+export const ORIGIN = 'https://digital-x-marketing.com';
 
-/** Verified live pages. These already exist and must keep receiving traffic. */
+/** Verified live destinations. */
 export const LIVE = {
   home: `${ORIGIN}/`,
-  projekti: `${ORIGIN}/projekti`,
-  blog: `${ORIGIN}/blog`,
-  shop: `${ORIGIN}/shop`,
+  /** There is no standalone /projekti route; portfolio lives on the homepage. */
+  projekti: `${ORIGIN}/#radovi`,
+  blog: `${ORIGIN}/blog/`,
+  shop: `${ORIGIN}/shop/`,
 } as const;
 
 /**
- * Destinations referenced by the live homepage whose URLs could not be
- * resolved. Left blank on purpose — see the fallbacks below each one.
+ * Real destinations for homepage CTAs. If a dedicated page is not available,
+ * keep the visitor in the appropriate homepage flow.
  */
 export const UNRESOLVED = {
-  /** "Analiza sajta" / the free 60-second audit. Blank → the on-page audit flow. */
-  auditPage: '',
-  /** "Pogledaj akcijsku ponudu" for Smart Website Launch. Blank → the offer block scrolls to contact. */
-  offerPage: '',
-  /** Eynna Hair case study. Blank → the card links to /projekti. */
-  eynnaCaseStudy: '',
-  /** The live Eynna Hair wig designer app. Blank → the card links to /projekti. */
-  eynnaApp: '',
-  /** AI Second Brain OS detail page. Blank → the card links to /projekti. */
-  secondBrainOs: '',
-  /** GrowthOS demo. Blank → the card links to /projekti. */
-  growthOs: '',
-  /** Consultation booking (Calendly or similar). Blank → the on-page form. */
-  bookingUrl: '',
-  /** Privacy policy / terms. Blank → the footer link is not rendered. */
-  privacyPolicy: '',
-  termsOfService: '',
-  /** Social profiles. Blank → not rendered. */
+  /** Free website audit. */
+  auditPage: `${ORIGIN}/audit.html`,
+  /** Smart Website Launch offer currently converts through the contact section. */
+  offerPage: `${ORIGIN}/#kontakt`,
+  /** Portfolio items currently live in the homepage portfolio section. */
+  eynnaCaseStudy: `${ORIGIN}/#radovi`,
+  eynnaApp: `${ORIGIN}/#radovi`,
+  secondBrainOs: `${ORIGIN}/#radovi`,
+  growthOs: `${ORIGIN}/#radovi`,
+  /** Dedicated contact page is the safe booking/contact destination. */
+  bookingUrl: `${ORIGIN}/kontakt.html`,
+  privacyPolicy: `${ORIGIN}/privatnost.html`,
+  termsOfService: `${ORIGIN}/uslovi.html`,
+  /** Social URLs are omitted until verified. */
   instagram: '',
   facebook: '',
   linkedin: '',
@@ -62,9 +55,5 @@ export const FORM_ENDPOINT = '';
  */
 export const PAGESPEED_API_KEY = '';
 
-/**
- * The Smart Website Launch promotion was live on digital-x-marketing.com when
- * this page was built. It is capped at five projects in total, so it will end.
- * Set to false the day it does and the whole block disappears.
- */
+/** Smart Website Launch promotion switch. */
 export const OFFER_ACTIVE = true;
