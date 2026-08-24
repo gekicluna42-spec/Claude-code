@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/merge-cinematic.mjs",
     "preview": "vite preview",
     "frames": "node scripts/frames.mjs",
     "qa": "node scripts/qa.mjs",
