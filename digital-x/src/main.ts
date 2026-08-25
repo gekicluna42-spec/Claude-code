@@ -24,6 +24,7 @@ import { initContact } from './sections/contact';
 import { initExplorer } from './sections/explorer';
 import { initGrowth } from './sections/growth';
 import { initNav } from './sections/nav';
+import { initVanta } from './sections/vanta';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -151,6 +152,10 @@ async function main(): Promise<void> {
   }
 
   void initExplorer({ base: BASE, tier });
+
+  // The VANTA hypercar demo scrubs its own frame reel, independently of the
+  // hero film — it never touches the content gate and its absence is harmless.
+  void initVanta({ base: BASE, tier });
 
   // The Signal Engine goes on last, is loaded separately, and is allowed to
   // fail. Three.js is ~150 KB gzipped — asking the visitor to download it

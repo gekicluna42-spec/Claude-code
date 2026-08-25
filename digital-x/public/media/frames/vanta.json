@@ -1,0 +1,22 @@
+{
+  "id": "vanta",
+  "aspect": 1.7777777777777777,
+  "source": {
+    "frames": 361,
+    "fps": 24
+  },
+  "ladders": [
+    {
+      "dir": "sm",
+      "width": 768,
+      "webp": true,
+      "count": 181
+    },
+    {
+      "dir": "lg",
+      "width": 1280,
+      "webp": false,
+      "count": 181
+    }
+  ]
+}

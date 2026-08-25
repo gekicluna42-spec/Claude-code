@@ -636,6 +636,183 @@
 .shop__price { font: 500 var(--t-small)/1 var(--mono); color: var(--ivory-dim); margin-top: 0.3rem; }
 .section--showcase .btn, .section--shop .btn, .section--guides .btn { margin-top: 2.5rem; }
 
+/* ---- VANTA hypercar: a scroll-scrubbed cinematic demo ------------------- */
+
+/*
+ * One tall section with a sticky 100vh stage — the visitor scrolls the section
+ * and the frame under the playhead follows. 320vh gives the 361-frame film room
+ * to read as a camera move rather than a slideshow; a shorter run on a phone,
+ * where the reel is the narrow ladder and the thumb travels less.
+ */
+.section--vanta { padding: 0; height: 320vh; position: relative; }
+@media (max-width: 860px) { .section--vanta { height: 260vh; } }
+
+.vanta__intro {
+  position: relative;
+  z-index: 4;
+  padding-top: var(--section);
+  padding-bottom: clamp(1.5rem, 4vh, 3rem);
+  pointer-events: none;
+}
+.vanta__intro .kicker { color: var(--cyan); }
+.vanta__title { font-size: var(--t-h2); margin-top: 0.6rem; }
+.vanta__body { margin-top: 1rem; max-width: 40rem; color: var(--muted); font-size: var(--t-body); }
+
+.vanta__stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ink);
+  display: grid;
+}
+.vanta__poster,
+.vanta__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.vanta__poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* The canvas fades in over the poster only once it has painted a real frame. */
+.vanta__canvas { opacity: 0; transition: opacity 0.6s var(--ease); }
+.vanta__stage.is-live .vanta__canvas { opacity: 1; }
+
+/* A restrained grade so the interface and the picture read as one material. */
+.vanta__grade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 100% at 50% 42%, transparent 55%, rgba(7, 7, 8, 0.55) 100%),
+    linear-gradient(to bottom, rgba(7, 7, 8, 0.35) 0%, transparent 24%, transparent 62%, rgba(7, 7, 8, 0.8) 100%);
+}
+
+.vanta__tag {
+  position: absolute;
+  z-index: 3;
+  top: clamp(1.25rem, 4vh, 2rem);
+  right: var(--pad);
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--edge);
+  padding: 0.45rem 0.7rem;
+  background: rgba(7, 7, 8, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.vanta__hud {
+  position: absolute;
+  z-index: 2;
+  left: var(--pad);
+  right: var(--pad);
+  bottom: 2.25rem;
+  display: grid;
+  gap: 0.85rem;
+  pointer-events: none;
+}
+.vanta__marks { position: relative; height: 1em; }
+.vanta__mark {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted-1);
+  opacity: 0;
+  transform: translateY(0.4rem);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+  white-space: nowrap;
+}
+.vanta__mark.is-on { opacity: 1; transform: none; }
+.vanta__mark em { font-style: normal; color: var(--cyan); letter-spacing: 0.1em; }
+.vanta__rail { height: 1px; background: var(--edge); overflow: hidden; }
+.vanta__rail i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(to right, var(--cyan-deep), var(--cyan));
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+.vanta__scroll {
+  position: absolute;
+  z-index: 2;
+  left: var(--pad);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--muted);
+  transition: opacity 0.6s var(--ease);
+}
+.vanta__scroll::after {
+  content: '';
+  width: 4rem;
+  height: 1px;
+  background: linear-gradient(to right, var(--cyan), transparent);
+  transform-origin: left;
+  animation: film-hint 2.8s var(--ease) infinite;
+}
+.vanta.has-moved .vanta__scroll { opacity: 0; }
+
+/* The caption resolves as the film is scrubbed to its end. */
+.vanta__outro {
+  position: absolute;
+  z-index: 3;
+  left: 0; right: 0;
+  bottom: 0;
+  width: min(100% - var(--pad) * 2, var(--wrap));
+  margin-inline: auto;
+  padding-bottom: clamp(4rem, 12vh, 7rem);
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  opacity: 0;
+  transform: translateY(1.5rem);
+  pointer-events: none;
+  transition: opacity 1s var(--ease), transform 1s var(--ease);
+}
+.vanta.has-moved .vanta__outro { opacity: 1; transform: none; pointer-events: auto; }
+.vanta__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font: 500 var(--t-micro)/1 var(--mono);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+.vanta__eyebrow-x { width: 0.7rem; height: 0.7rem; flex: none; }
+.vanta__outro-line { font-size: var(--t-lead); color: var(--ivory); max-width: 24ch; text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7); }
+
+/* The filmstrip is the reduced-motion and no-JavaScript path. */
+.vanta__strip { display: none; }
+
+@media (max-width: 860px) {
+  .vanta__hud { bottom: 1.5rem; }
+  .vanta__scroll { top: auto; bottom: 5rem; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section--vanta { height: auto; }
+  .vanta__stage { position: relative; height: auto; min-height: 60svh; }
+  .vanta__canvas, .vanta__hud, .vanta__scroll { display: none; }
+  .vanta__outro { position: relative; opacity: 1; transform: none; pointer-events: auto; padding: clamp(2rem, 6vh, 3rem) var(--pad); }
+  .vanta__strip { display: block; margin-top: 1px; }
+}
+
 /* ---- Audit -------------------------------------------------------------- */
 
 .audit { display: grid; gap: clamp(2rem, 5vw, 4rem); align-items: start; }
