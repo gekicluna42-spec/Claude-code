@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "frames": "node scripts/frames.mjs",
+    "vanta": "node scripts/vanta.mjs",
     "qa": "node scripts/qa.mjs",
     "singlefile": "vite build --config vite.preview.config.ts && node scripts/singlefile.mjs",
     "typecheck": "tsc --noEmit"

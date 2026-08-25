@@ -7,7 +7,7 @@
 
 import {
   APPS, AUDIT, AUTOMATION, BRIEF_NEEDS, CONTACT, DEMOS, DISCIPLINES, GROWTH_PATH,
-  GUIDES, OFFER, POSITIONING, PRICING, PROCESS, PROJECTS, SHOP, SHOWCASE,
+  GUIDES, OFFER, POSITIONING, PRICING, PROCESS, PROJECTS, SHOP, SHOWCASE, VANTA,
 } from '../data/content';
 import { LIVE, OFFER_ACTIVE, UNRESOLVED } from '../data/site.config';
 import { esc, join, lines, map, poster, xMark } from './html';
@@ -365,6 +365,58 @@ const showcase = (): string => `
   </div>
 </section>`;
 
+/**
+ * VANTA HYPERCAR — a scroll-scrubbed cinematic demo, the moving-picture proof
+ * that sits under the Cinematic showcase.
+ *
+ * Built as real markup: the poster and the four beat stills are in the DOM from
+ * the start, so a crawler, a reader with JavaScript off and a reduced-motion
+ * visitor all get the film as a filmstrip. src/sections/vanta.ts upgrades that
+ * to a canvas the visitor scrubs — it never gates anything, and its absence
+ * costs the page nothing.
+ */
+const vanta = (): string => `
+<section class="section section--vanta vanta" id="vanta" data-vanta
+  aria-label="VANTA Hypercar — cinematic demo">
+  <div class="wrap vanta__intro">
+    <p class="kicker">${xMark('kicker__x')}<span>${esc(VANTA.kicker)}</span></p>
+    ${lines(VANTA.title as unknown as string[], 'vanta__title', 'h2')}
+    <p class="vanta__body">${esc(VANTA.body)}</p>
+  </div>
+
+  <div class="vanta__stage" data-vanta-stage>
+    ${poster('vanta-open', 'VANTA Hypercar — filmski kadar u tamnom studiju.', 'vanta__poster', false)}
+    <canvas class="vanta__canvas" data-vanta-canvas aria-hidden="true"></canvas>
+    <div class="vanta__grade" aria-hidden="true"></div>
+
+    <div class="vanta__hud" aria-hidden="true">
+      <p class="vanta__marks">
+        ${map(VANTA.beats, (b) => `<span class="vanta__mark" data-vanta-mark
+          data-from="${b.from}" data-to="${b.to}"><em>${esc(b.numeral)}</em>${esc(b.title)}</span>`)}
+      </p>
+      <div class="vanta__rail"><i data-vanta-rail></i></div>
+    </div>
+
+    <p class="vanta__scroll" aria-hidden="true"><span>${esc(VANTA.scrollHint)}</span></p>
+    <span class="vanta__tag" aria-hidden="true">${esc(VANTA.label)}</span>
+
+    <div class="vanta__outro">
+      <p class="vanta__eyebrow">${xMark('vanta__eyebrow-x')}<span>${esc(VANTA.outro.eyebrow)}</span></p>
+      <p class="vanta__outro-line">${esc(VANTA.outro.line)}</p>
+      <a class="btn btn--primary" href="#kontakt">${esc(VANTA.outro.cta)}</a>
+    </div>
+  </div>
+
+  <div class="vanta__strip">
+    <ol class="strip" aria-label="Kadrovi iz VANTA Hypercar filma">
+      ${map(VANTA.beats, (b, i) => `<li class="strip__shot">
+        ${poster(`vanta-beat-${i + 1}`, `${b.title} — kadar iz VANTA Hypercar filma.`, 'strip__poster', false)}
+        <p class="strip__label"><span>${esc(b.numeral)}</span>${esc(b.title)}</p>
+      </li>`)}
+    </ol>
+  </div>
+</section>`;
+
 const shop = (): string => `
 <section class="section section--shop" id="shop">
   <div class="wrap">
@@ -478,4 +530,4 @@ const contact = (): string => `
 </section>`;
 
 export const partTwo = (): string =>
-  join([pricing(), portfolio(), demos(), showcase(), shop(), audit(), guides(), contact()]);
+  join([pricing(), portfolio(), demos(), showcase(), vanta(), shop(), audit(), guides(), contact()]);

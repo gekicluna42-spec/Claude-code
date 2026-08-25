@@ -485,6 +485,37 @@ export const SHOWCASE = {
   ],
 } as const;
 
+/**
+ * VANTA HYPERCAR — a scroll-driven cinematic demo inside the Cinematic
+ * showcase. It is a Digital X render, labelled as one: an automotive brand film
+ * the visitor scrubs frame by frame rather than watches, the same technique as
+ * the hero at the top of the page applied to a product story.
+ *
+ * The beats name the HUD marker over the picture and, with motion off, become
+ * the four stills sampled from the film itself by scripts/vanta.mjs.
+ */
+export const VANTA = {
+  kicker: 'Cinematic demo',
+  label: 'Digital X render',
+  title: ['VANTA', 'Hypercar.'],
+  body:
+    'Filmski proizvodni doživljaj koji posjetilac pomjera skrolom — svaki kadar se dekodira i iscrtava na platnu, isto kao hero film na vrhu, primijenjeno na priču o proizvodu. Demonstracija tehnike, ne stvarni klijentski brend.',
+  scrollHint: 'Skrolajte da vozite',
+  /** Where each beat sits along the scroll (0..1), for the HUD marker. */
+  beats: [
+    { numeral: '01', title: 'Reveal', from: 0, to: 0.28 },
+    { numeral: '02', title: 'Forma', from: 0.28, to: 0.55 },
+    { numeral: '03', title: 'Pokret', from: 0.55, to: 0.82 },
+    { numeral: '04', title: 'Znak', from: 0.82, to: 1 },
+  ],
+  /** The caption that lands once the film has been scrubbed to its end. */
+  outro: {
+    eyebrow: 'Film-grade web',
+    line: 'Ovako izgleda proizvod koji se ne gleda — nego vozi.',
+    cta: 'Želim ovakav doživljaj',
+  },
+} as const;
+
 /** Source: homepage "Besplatno · 60 sekundi". */
 export const AUDIT = {
   kicker: 'Besplatno · 60 sekundi',
